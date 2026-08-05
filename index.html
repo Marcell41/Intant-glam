@@ -291,6 +291,11 @@
     z-index:20;
     background: linear-gradient(180deg, rgba(15,11,14,0), rgba(15,11,14,0.94) 30%, #0F0B0E 60%);
     padding: 10px 0 calc(var(--safe-bottom) + 14px);
+    transition: transform .28s ease;
+  }
+  #bottomPanel.collapsed{
+    transform: translateY(calc(100% - 10px));
+    pointer-events:none;
   }
   .swatchGroup{ margin-bottom:6px; }
   .swatchGroup .groupLabel{
@@ -1132,29 +1137,28 @@
   const snapCanvas = document.getElementById('snapCanvas');
   // Local path helpers — these trace the exact same curves as the on-screen SVGs,
   // so the captured photo always matches what's visible, with no image-loading step to fail.
-  function traceLipsTop(ctx){
-    ctx.beginPath();
-    ctx.moveTo(-80,49);
-    ctx.bezierCurveTo(-70,42, -20,39, 55,38);
-    ctx.bezierCurveTo(75,38, 92,39, 110,40);
-    ctx.bezierCurveTo(128,39, 145,38, 165,38);
-    ctx.bezierCurveTo(240,39, 290,42, 300,49);
-    ctx.bezierCurveTo(240,48, 155,45, 110,45);
-    ctx.bezierCurveTo(65,45, -20,48, -80,49);
-    ctx.closePath();
-  }
-  function traceLipsBottom(ctx){
-    ctx.beginPath();
-    ctx.moveTo(-80,49);
-    ctx.bezierCurveTo(-90,52, -85,55, 17,57);
-    ctx.bezierCurveTo(47,58, 83,59, 110,58);
-    ctx.bezierCurveTo(137,59, 173,58, 203,57);
-    ctx.bezierCurveTo(305,55, 310,52, 300,49);
-    ctx.bezierCurveTo(240,48, 163,50, 110,50);
-    ctx.bezierCurveTo(58,50, -20,48, -80,49);
-    ctx.closePath();
-  }
-  function traceEyeLid(ctx){
+ function traceLipsTop(ctx){
+  ctx.beginPath();
+  ctx.moveTo(34,49);
+  ctx.bezierCurveTo(40,38, 68,32, 92,34);
+  ctx.bezierCurveTo(98,35, 104,38, 110,38);
+  ctx.bezierCurveTo(116,38, 122,35, 128,34);
+  ctx.bezierCurveTo(152,32, 180,38, 186,49);
+  ctx.bezierCurveTo(160,45, 130,42, 110,42);
+  ctx.bezierCurveTo(90,42, 60,45, 34,49);
+  ctx.closePath();
+}
+ function traceLipsBottom(ctx){
+ctx.beginPath();
+  ctx.moveTo(34,49);
+  ctx.bezierCurveTo(30,56, 45,63, 70,65);
+  ctx.bezierCurveTo(85,66, 95,66, 110,66);
+  ctx.bezierCurveTo(125,66, 135,66, 150,65);
+  ctx.bezierCurveTo(175,63, 190,56, 186,49);
+  ctx.bezierCurveTo(160,52, 130,54, 110,54);
+  ctx.bezierCurveTo(90,54, 60,52, 34,49);
+  ctx.closePath(); 
+} function traceEyeLid(ctx){
     ctx.beginPath();
     ctx.moveTo(0,45);
     ctx.bezierCurveTo(18,12, 52,8, 80,16);
@@ -1195,8 +1199,19 @@
 
   let capturedFaceCanvas = null;
   let inEditMode = false;
+  let capturing = false;
+  const bottomPanel = document.getElementById('bottomPanel');
+  const PANEL_COLLAPSE_MS = 280;
 
   document.getElementById('shutter').addEventListener('click', ()=>{
+    if(capturing) return;
+    capturing = true;
+    // Slide the swatch panel almost fully off screen so it doesn't cover the face for the shot
+    bottomPanel.classList.add('collapsed');
+    setTimeout(takeShot, PANEL_COLLAPSE_MS);
+  });
+
+  function takeShot(){
     try{
       const stage = document.getElementById('stage');
       const stageW = stage.clientWidth, stageH = stage.clientHeight;
@@ -1241,8 +1256,12 @@
     }catch(err){
       console.error('Capture failed:', err);
       showToast("Couldn't capture — try again");
+    } finally {
+      // Slide the swatch panel back so it's usable again once the shot is taken
+      bottomPanel.classList.remove('collapsed');
+      capturing = false;
     }
-  });
+  }
 
   function enterEditMode(faceCanvas){
     // Hide camera, show frozen face

@@ -40,9 +40,6 @@
     justify-content:center;
     overflow:hidden;
     touch-action:none;
-    -webkit-user-select:none;
-    user-select:none;
-    -webkit-touch-callout:none;
   }
   .display{font-family:'Playfair Display', serif;}
 
@@ -209,7 +206,7 @@
   /* ---------- mode tabs ---------- */
   #hintStrip{
     display:inline-block;
-    margin:0 auto; display:table;
+    margin:0 auto 8px; display:table;
     background:rgba(28,20,24,0.62);
     backdrop-filter: blur(4px);
     border:1px solid var(--line);
@@ -219,15 +216,10 @@
     white-space:nowrap;
     transition:opacity .3s ease;
   }
-  #welcomeModal .modalCard{ padding-bottom:calc(var(--safe-bottom) + 26px); }
-  .welcomeHero{
-    margin:4px 0 18px;
-    border-radius:16px;
-    overflow:hidden;
-    border:1px solid var(--line);
-    line-height:0;
+  #swatchHint{
+    font-size:11px; color:var(--muted); text-align:center; padding:0 16px 4px; font-weight:600;
   }
-  .welcomeHero svg{ display:block; width:100%; height:auto; }
+  #welcomeModal .modalCard{ padding-bottom:calc(var(--safe-bottom) + 26px); }
   .stepRow{ display:flex; gap:12px; align-items:flex-start; margin-bottom:16px; }
   .stepNum{
     flex:0 0 auto; width:28px; height:28px; border-radius:50%;
@@ -297,13 +289,9 @@
   #bottomPanel{
     position:absolute; left:0; right:0; bottom:0;
     z-index:20;
-    background: linear-gradient(180deg, rgba(15,11,14,0), rgba(15,11,14,0.94) 30%, #0F0B0E 60%);
+   max-height:32vh;
+  overflow-y:auto; background: linear-gradient(180deg, rgba(15,11,14,0), rgba(15,11,14,0.94) 30%, #0F0B0E 60%);
     padding: 10px 0 calc(var(--safe-bottom) + 14px);
-    transition: transform .28s ease;
-  }
-  #bottomPanel.collapsed{
-    transform: translateY(calc(100% - 10px));
-    pointer-events:none;
   }
   .swatchGroup{ margin-bottom:6px; }
   .swatchGroup .groupLabel{
@@ -450,42 +438,6 @@
   <div class="modalWrap" id="welcomeModal">
     <div class="modalCard">
       <div class="modalHandle"></div>
-      <div class="welcomeHero">
-        <svg viewBox="0 0 320 190" width="100%" height="170" role="img" aria-label="Person using Instant Glam with a live lipstick and eyeshadow overlay on their selfie">
-          <defs>
-            <linearGradient id="heroBgGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#2A1E22"/>
-              <stop offset="100%" stop-color="#120D0F"/>
-            </linearGradient>
-            <linearGradient id="heroSkinGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#E8C9B8"/>
-              <stop offset="100%" stop-color="#D4A896"/>
-            </linearGradient>
-          </defs>
-          <rect x="0" y="0" width="320" height="190" fill="url(#heroBgGrad)"/>
-          <!-- phone frame showing the live camera view -->
-          <rect x="93" y="12" width="134" height="166" rx="22" fill="#000" stroke="#C9A227" stroke-width="2"/>
-          <rect x="101" y="20" width="118" height="150" rx="16" fill="#1C1418"/>
-          <!-- face on screen -->
-          <path d="M118 74 C118 40, 202 40, 202 74 C202 54, 118 54, 118 74 Z" fill="#2B1B14"/>
-          <ellipse cx="160" cy="98" rx="42" ry="54" fill="url(#heroSkinGrad)"/>
-          <!-- eyeshadow overlay tint -->
-          <path d="M131 84 C137 73, 151 71, 158 78 C150 82, 139 84, 131 84 Z" fill="#8A6FB3" opacity="0.6"/>
-          <path d="M162 78 C169 71, 183 73, 189 84 C181 84, 170 82, 162 78 Z" fill="#8A6FB3" opacity="0.6"/>
-          <circle cx="141" cy="82" r="2.6" fill="#3A2A22"/>
-          <circle cx="179" cy="82" r="2.6" fill="#3A2A22"/>
-          <!-- lipstick overlay tint -->
-          <path d="M142 120 C149 114, 171 114, 178 120 C171 128, 149 128, 142 120 Z" fill="#C0435A" opacity="0.85"/>
-          <!-- fingertip tapping a shade -->
-          <path d="M244 118 L268 96 L275 103 L251 125 Z" fill="#D4A896"/>
-          <circle cx="272" cy="99.5" r="5.5" fill="#E8C9B8"/>
-          <!-- color swatches being chosen -->
-          <circle cx="112" cy="180" r="9" fill="#E4634E"/>
-          <circle cx="136" cy="180" r="9" fill="#C0435A"/>
-          <circle cx="160" cy="180" r="10" fill="#8A6FB3" stroke="#F5EDE9" stroke-width="2.5"/>
-          <circle cx="184" cy="180" r="9" fill="#D8788F"/>
-        </svg>
-      </div>
       <div class="goldEyebrow">Welcome to</div>
       <h2 class="modalTitle display" style="font-size:32px;">Instant<span style="color:var(--gold-bright);">Glam</span></h2>
       <p class="modalSub">Three steps to your look:</p>
@@ -513,14 +465,25 @@
       <svg class="corner br" viewBox="0 0 64 64"><path d="M6 64 C 6 38, 18 17, 44 9 C 50 7, 57 6, 64 6"/><path class="inner" d="M6 46 C 18 46, 24 39, 24 26"/><path class="inner" d="M14 64 C 14 50, 22 44, 34 44"/><circle cx="24" cy="20" r="2.6"/><circle cx="10" cy="52" r="1.6"/></svg>
     </div>
 
-    <!-- Lip overlay: path data mirrors traceLipsTop/traceLipsBottom (canvas capture shapes)
-         so the live preview always matches the shape used in the final photo. -->
+    <!-- Lip overlay -->
     <div class="overlay-layer" id="lipsLayer">
-      <svg id="lipsSvg" width="220" height="96" viewBox="0 0 220 96">
-        <path d="M34,49 C40,38 68,32 92,34 C98,35 104,38 110,38 C116,38 122,35 128,34
-                 C152,32 180,38 186,49 C160,45 130,42 110,42 C90,42 60,45 34,49 Z" fill="#C0435A" opacity="0.82" id="lipsTop"/>
-        <path d="M34,49 C30,56 45,63 70,65 C85,66 95,66 110,66 C125,66 135,66 150,65
-                 C175,63 190,56 186,49 C160,52 130,54 110,54 C90,54 60,52 34,49 Z" fill="#C0435A" opacity="0.82" id="lipsBottom"/>
+      <svg id="lipsSvg" width="220" height="110" viewBox="0 0 220 110">
+        <!-- Top lip: corners match the bottom lip exactly, joined further along the edges -->
+        <path d="M -80 49
+                 C -70 42, -20 39, 55 38
+                 C 75 38, 92 39, 110 40
+                 C 128 39, 145 38, 165 38
+                 C 240 39, 290 42, 300 49
+                 C 240 48, 155 45, 110 45
+                 C 65 45, -20 48, -80 49 Z" fill="#C0435A" opacity="0.85" id="lipsTop"/>
+        <!-- Bottom lip: 10% less full, visible mouth-line gap in the middle, joined further along the edges -->
+        <path d="M -80 49
+                 C -90 52, -85 55, 17 57
+                 C 47 58, 83 59, 110 58
+                 C 137 59, 173 58, 203 57
+                 C 305 55, 310 52, 300 49
+                 C 240 48, 163 50, 110 50
+                 C 58 50, -20 48, -80 49 Z" fill="#C0435A" opacity="0.82" id="lipsBottom"/>
       </svg>
     </div>
 
@@ -583,7 +546,6 @@
         <ellipse cx="24" cy="24" rx="5" ry="10" fill="rgba(255,255,255,0.12)"/>
       </svg>
     </div>
-    <div id="hintStrip">Swipe ↕ to position · tap a color to try it</div>
   </div>
 
   <div class="sizeControls" id="lipSizeControls">
@@ -607,10 +569,8 @@
   <div id="toast"></div>
 
   <div id="bottomPanel">
-    <div class="pageTabs hidden" id="swatchTargetTabs" style="padding:0 16px 8px;">
-      <button data-target="lips" class="active">Lip Colors</button>
-      <button data-target="eyes">Eye Colors</button>
-    </div>
+    <div id="hintStrip">Swipe ↕ to position · tap a color to try it</div>
+    <div id="swatchHint">Tap a shade to try it on</div>
     <div class="swatchGroup" id="lipSwatchGroup">
       <div class="groupLabel">Lipstick <span id="lipCountLabel"></span></div>
       <div class="pageTabs" id="lipPageTabs"></div>
@@ -621,7 +581,7 @@
       <div class="pageTabs" id="eyePageTabs"></div>
       <div class="swatchRow" id="eyeSwatchRow"></div>
     </div>
-    <div id="captureRow" class="hidden">
+    <div id="captureRow">
       <button class="roundBtn" id="flipCamBtn" title="Flip camera">⟲</button>
       <button id="shutter" disabled></button>
       <button class="roundBtn" id="resetBtn" title="Reset position">↺</button>
@@ -831,15 +791,6 @@
     ctx.strokeRect(w/2-100, h*0.55, 200, 60);
   }
 
-  // The three camera control buttons (flip / shutter / reset) only make sense once
-  // a live feed (real camera or test mode) is actually showing — keep them hidden
-  // on the welcome screen and while the camera has never been turned on.
-  const captureRow = document.getElementById('captureRow');
-  function setCameraActive(active){
-    captureRow.classList.toggle('hidden', !active);
-    document.getElementById('shutter').disabled = !active;
-  }
-
   function toggleTestMode(){
     testModeActive = !testModeActive;
     if(testModeActive){
@@ -851,13 +802,13 @@
       testCanvas.style.display = 'block';
       initTestMode();
       camPlaceholder.classList.add('hidden');
-      setCameraActive(true);
+      document.getElementById('shutter').disabled = false;
       document.getElementById('testModeBtn').style.opacity = '1';
     } else {
       video.style.display = 'block';
       testCanvas.style.display = 'none';
       camPlaceholder.classList.remove('hidden');
-      setCameraActive(false);
+      document.getElementById('shutter').disabled = true;
       document.getElementById('testModeBtn').style.opacity = '0.5';
       startCamera(state.facing);
     }
@@ -867,7 +818,7 @@
   // Start in real camera mode by default — camPlaceholder shows the "Turn on camera" button immediately
   testModeActive = false;
   camPlaceholder.classList.remove('hidden');
-  setCameraActive(false);
+  document.getElementById('shutter').disabled = true;
   document.getElementById('testModeBtn').style.opacity = '0.5';
 
   async function startCamera(facing){
@@ -880,12 +831,12 @@
       currentStream = stream;
       video.srcObject = stream;
       camPlaceholder.classList.add('hidden');
-      setCameraActive(true);
+      document.getElementById('shutter').disabled = false;
     }catch(err){
       camPlaceholder.classList.remove('hidden');
       camPlaceholder.querySelector('div.display').textContent = 'Camera unavailable';
       camPlaceholder.querySelectorAll('div')[1].textContent = 'Allow camera access in your browser settings, or try again.';
-      setCameraActive(false);
+      document.getElementById('shutter').disabled = true;
     }
   }
   const enableCamBtn = document.getElementById('enableCamBtn');
@@ -983,26 +934,6 @@
   const lipSizeControls = document.getElementById('lipSizeControls');
   const eyeSizeControls = document.getElementById('eyeSizeControls');
   const eyeSpreadControls = document.getElementById('eyeSpreadControls');
-  const swatchTargetTabs = document.getElementById('swatchTargetTabs');
-
-  // Which single swatch panel is on screen when both overlays are active —
-  // only one of lipSwatchGroup / eyeSwatchGroup may ever be shown at once.
-  let swatchFocus = 'lips';
-
-  function updateSwatchPanel(){
-    const showLipPanel = state.mode === 'lips' || (state.mode === 'both' && swatchFocus === 'lips');
-    const showEyePanel = state.mode === 'eyes' || (state.mode === 'both' && swatchFocus === 'eyes');
-    lipSwatchGroup.classList.toggle('hidden', !showLipPanel);
-    eyeSwatchGroup.classList.toggle('hidden', !showEyePanel);
-    swatchTargetTabs.classList.toggle('hidden', state.mode !== 'both');
-    [...swatchTargetTabs.children].forEach(b=>b.classList.toggle('active', b.dataset.target===swatchFocus));
-  }
-  swatchTargetTabs.querySelectorAll('button').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      swatchFocus = btn.dataset.target;
-      updateSwatchPanel();
-    });
-  });
 
   function applyMode(mode){
     state.mode = mode;
@@ -1014,9 +945,8 @@
     state.lips.visible = showLips;
     state.eyes.visible = showEyes;
 
-    if(mode !== 'both'){ swatchFocus = mode; }
-    updateSwatchPanel();
-
+    lipSwatchGroup.classList.toggle('hidden', !showLips);
+    eyeSwatchGroup.classList.toggle('hidden', !showEyes);
     lipSizeControls.classList.toggle('hidden', !showLips);
     eyeSizeControls.classList.toggle('hidden', !showEyes);
     eyeSpreadControls.classList.toggle('hidden', !showEyes);
@@ -1265,19 +1195,8 @@ ctx.beginPath();
 
   let capturedFaceCanvas = null;
   let inEditMode = false;
-  let capturing = false;
-  const bottomPanel = document.getElementById('bottomPanel');
-  const PANEL_COLLAPSE_MS = 280;
 
   document.getElementById('shutter').addEventListener('click', ()=>{
-    if(capturing) return;
-    capturing = true;
-    // Slide the swatch panel almost fully off screen so it doesn't cover the face for the shot
-    bottomPanel.classList.add('collapsed');
-    setTimeout(takeShot, PANEL_COLLAPSE_MS);
-  });
-
-  function takeShot(){
     try{
       const stage = document.getElementById('stage');
       const stageW = stage.clientWidth, stageH = stage.clientHeight;
@@ -1322,12 +1241,8 @@ ctx.beginPath();
     }catch(err){
       console.error('Capture failed:', err);
       showToast("Couldn't capture — try again");
-    } finally {
-      // Slide the swatch panel back so it's usable again once the shot is taken
-      bottomPanel.classList.remove('collapsed');
-      capturing = false;
     }
-  }
+  });
 
   function enterEditMode(faceCanvas){
     // Hide camera, show frozen face
@@ -1429,7 +1344,7 @@ ctx.beginPath();
       <img src="${dataUrl}" alt="Your Instant Glam selfie">
       <div id="captureActions">
         <button id="retakeBtn">Retake</button>
-        <a class="primary" id="saveBtn" style="text-decoration:none; text-align:center; display:flex; align-items:center; justify-content:center; border-radius:12px;" download="instant-glam.png" href="${dataUrl}">Save photo</a>
+        <a class="primary" id="saveBtn" style="text-decoration:none; text-align:center; display:flex; align-items:center; justify-content:center; border-radius:12px;" download="instant-glam.png" href="${dataUrl}">Save photo</button>
       </div>
     `;
     document.getElementById('app').appendChild(view);

@@ -468,22 +468,22 @@
     <!-- Lip overlay -->
     <div class="overlay-layer" id="lipsLayer">
       <svg id="lipsSvg" width="220" height="110" viewBox="0 0 220 110">
-        <!-- Top lip: corners match the bottom lip exactly, joined further along the edges -->
-        <path d="M -80 49
-                 C -70 42, -20 39, 55 38
-                 C 75 38, 92 39, 110 40
-                 C 128 39, 145 38, 165 38
-                 C 240 39, 290 42, 300 49
-                 C 240 48, 155 45, 110 45
-                 C 65 45, -20 48, -80 49 Z" fill="#C0435A" opacity="0.85" id="lipsTop"/>
-        <!-- Bottom lip: 10% less full, visible mouth-line gap in the middle, joined further along the edges -->
-        <path d="M -80 49
-                 C -90 52, -85 55, 17 57
-                 C 47 58, 83 59, 110 58
-                 C 137 59, 173 58, 203 57
-                 C 305 55, 310 52, 300 49
-                 C 240 48, 163 50, 110 50
-                 C 58 50, -20 48, -80 49 Z" fill="#C0435A" opacity="0.82" id="lipsBottom"/>
+        <!-- Top lip: matches traceLipsTop() in the capture canvas exactly -->
+        <path d="M 34 49
+                 C 40 38, 68 32, 92 34
+                 C 98 35, 104 38, 110 38
+                 C 116 38, 122 35, 128 34
+                 C 152 32, 180 38, 186 49
+                 C 160 45, 130 42, 110 42
+                 C 90 42, 60 45, 34 49 Z" fill="#C0435A" opacity="0.85" id="lipsTop"/>
+        <!-- Bottom lip: matches traceLipsBottom() in the capture canvas exactly -->
+        <path d="M 34 49
+                 C 30 56, 45 63, 70 65
+                 C 85 66, 95 66, 110 66
+                 C 125 66, 135 66, 150 65
+                 C 175 63, 190 56, 186 49
+                 C 160 52, 130 54, 110 54
+                 C 90 54, 60 52, 34 49 Z" fill="#C0435A" opacity="0.82" id="lipsBottom"/>
       </svg>
     </div>
 

@@ -142,6 +142,21 @@
   .hidden{ display:none !important; }
   .dimmed{ opacity:0; }
 
+  /* Before a photo is taken, positioning/resizing/color UI stays out of the way —
+     it only appears once there's a still photo to place it on. */
+  #app.capturing .overlay-layer,
+  #app.capturing #dragSurface,
+  #app.capturing .sizeControls,
+  #app.capturing .eyeExtra,
+  #app.capturing #modeTabs,
+  #app.capturing #hintStrip,
+  #app.capturing #swatchHint,
+  #app.capturing #lipSwatchGroup,
+  #app.capturing #eyeSwatchGroup,
+  #app.capturing #resetBtn{
+    display:none !important;
+  }
+
   /* ---------- top bar ---------- */
   #topbar{
     position:absolute; top:0; left:0; right:0;
@@ -433,7 +448,7 @@
 </head>
 <body>
 
-<div id="app">
+<div id="app" class="capturing">
 
   <div class="modalWrap" id="welcomeModal">
     <div class="modalCard">
@@ -441,8 +456,8 @@
       <div class="goldEyebrow">Welcome to</div>
       <h2 class="modalTitle display" style="font-size:32px;">Instant<span style="color:var(--gold-bright);">Glam</span></h2>
       <p class="modalSub">Three steps to your look:</p>
-      <div class="stepRow"><div class="stepNum">1</div><div class="stepText">Take a selfie — the camera stays live so you can see everything in real time.</div></div>
-      <div class="stepRow"><div class="stepNum">2</div><div class="stepText">Swipe up or down to fit the lip and eye shapes right where you want them, and use +/− to resize.</div></div>
+      <div class="stepRow"><div class="stepNum">1</div><div class="stepText">Take a selfie — line up your face in the frame and tap the shutter.</div></div>
+      <div class="stepRow"><div class="stepNum">2</div><div class="stepText">On your captured photo, swipe up or down to fit the lip and eye shapes right where you want them, and use +/− to resize.</div></div>
       <div class="stepRow"><div class="stepNum">3</div><div class="stepText">Pick whatever color you like from the shades below — mix and match freely.</div></div>
       <button class="ctaBtn" id="welcomeStartBtn">Let's glam</button>
     </div>
@@ -468,12 +483,13 @@
     <!-- Lip overlay -->
     <div class="overlay-layer" id="lipsLayer">
       <svg id="lipsSvg" width="220" height="110" viewBox="0 0 220 110">
-        <!-- Top lip: matches traceLipsTop() in the capture canvas exactly -->
+        <!-- Top lip: matches traceLipsTop() in the capture canvas exactly. Outer contour raised
+             ~5% off the mouth-line for extra fullness; mouth-line and corners unchanged. -->
         <path d="M 34 49
-                 C 40 38, 68 32, 92 34
-                 C 98 35, 104 38, 110 38
-                 C 116 38, 122 35, 128 34
-                 C 152 32, 180 38, 186 49
+                 C 40 37, 68 31, 92 33
+                 C 98 34, 104 37, 110 37
+                 C 116 37, 122 34, 128 33
+                 C 152 31, 180 37, 186 49
                  C 160 45, 130 42, 110 42
                  C 90 42, 60 45, 34 49 Z" fill="#C0435A" opacity="0.85" id="lipsTop"/>
         <!-- Bottom lip: matches traceLipsBottom() in the capture canvas exactly -->
@@ -1136,10 +1152,10 @@
  function traceLipsTop(ctx){
   ctx.beginPath();
   ctx.moveTo(34,49);
-  ctx.bezierCurveTo(40,38, 68,32, 92,34);
-  ctx.bezierCurveTo(98,35, 104,38, 110,38);
-  ctx.bezierCurveTo(116,38, 122,35, 128,34);
-  ctx.bezierCurveTo(152,32, 180,38, 186,49);
+  ctx.bezierCurveTo(40,37, 68,31, 92,33);
+  ctx.bezierCurveTo(98,34, 104,37, 110,37);
+  ctx.bezierCurveTo(116,37, 122,34, 128,33);
+  ctx.bezierCurveTo(152,31, 180,37, 186,49);
   ctx.bezierCurveTo(160,45, 130,42, 110,42);
   ctx.bezierCurveTo(90,42, 60,45, 34,49);
   ctx.closePath();
@@ -1245,6 +1261,9 @@ ctx.beginPath();
   });
 
   function enterEditMode(faceCanvas){
+    // Reveal positioning/resizing/color UI now that there's a still photo to place it on
+    document.getElementById('app').classList.remove('capturing');
+
     // Hide camera, show frozen face
     video.style.display = 'none';
     testCanvas.style.display = 'none';
@@ -1319,7 +1338,9 @@ ctx.beginPath();
   function exitEditMode(){
     inEditMode = false;
     capturedFaceCanvas = null;
-    
+    // Back to the live camera — hide positioning/resizing/color UI until the next photo
+    document.getElementById('app').classList.add('capturing');
+
     // Show camera, hide frozen image
     if(testModeActive){
       testCanvas.style.display = 'block';

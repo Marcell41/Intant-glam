@@ -31,6 +31,7 @@
     --safe-bottom: env(safe-area-inset-bottom, 0px);
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  button{ -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; touch-action:manipulation; }
   html,body{height:100%; margin:0; overscroll-behavior:none;}
   body{
     background:var(--bg);
@@ -153,7 +154,7 @@
   #app.capturing #swatchHint,
   #app.capturing #lipSwatchGroup,
   #app.capturing #eyeSwatchGroup,
-  #app.capturing #resetBtn{
+  #app.capturing #editBtnGroup{
     display:none !important;
   }
 
@@ -220,15 +221,13 @@
 
   /* ---------- mode tabs ---------- */
   #hintStrip{
-    display:inline-block;
-    margin:0 auto 8px; display:table;
     background:rgba(28,20,24,0.62);
     backdrop-filter: blur(4px);
     border:1px solid var(--line);
     border-radius:999px;
     padding:6px 14px;
     font-size:11.5px; font-weight:600; color:var(--muted);
-    white-space:nowrap;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     transition:opacity .3s ease;
   }
   #swatchHint{
@@ -353,12 +352,20 @@
     display:flex; align-items:center; justify-content:center; gap:22px;
     padding:6px 16px 4px;
   }
-  #shutter{
-    width:66px; height:66px; border-radius:50%;
-    background:var(--text); border:4px solid rgba(245,237,233,0.35);
+  #captureRow.editing{
+    justify-content:space-between; gap:12px;
   }
-  #shutter:active{ transform:scale(0.94); }
-  #shutter:disabled{ background:rgba(245,237,233,0.3); border-color:rgba(245,237,233,0.15); }
+  #editBtnGroup{
+    display:flex; align-items:center; gap:10px;
+  }
+  #shutter{
+    padding:15px 26px; border-radius:999px;
+    background:linear-gradient(135deg, #4CC463, #2E8B3E);
+    border:none;
+    color:#fff; font-family:'Manrope'; font-weight:800; font-size:14.5px; letter-spacing:0.2px;
+  }
+  #shutter:active{ transform:scale(0.96); }
+  #shutter:disabled{ background:rgba(76,196,99,0.3); color:rgba(255,255,255,0.55); }
   .roundBtn{
     width:46px; height:46px; border-radius:50%;
     background:rgba(255,255,255,0.08); border:1px solid var(--line);
@@ -465,7 +472,6 @@
 
   <div id="stage">
     <video id="video" autoplay playsinline muted></video>
-    <canvas id="testCanvas" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:none;"></canvas>
     <div id="camPlaceholder">
       <div class="display" style="font-size:19px;">Instant Glam needs your camera</div>
       <div style="font-size:13.5px; max-width:280px;">We only use it to show makeup on your live selfie. Nothing is uploaded.</div>
@@ -484,12 +490,12 @@
     <div class="overlay-layer" id="lipsLayer">
       <svg id="lipsSvg" width="220" height="110" viewBox="0 0 220 110">
         <!-- Top lip: matches traceLipsTop() in the capture canvas exactly. Outer contour raised
-             ~5% off the mouth-line for extra fullness; mouth-line and corners unchanged. -->
+             ~10% off the mouth-line for extra fullness; mouth-line and corners unchanged. -->
         <path d="M 34 49
-                 C 40 37, 68 31, 92 33
+                 C 40 37, 68 30, 92 32
                  C 98 34, 104 37, 110 37
-                 C 116 37, 122 34, 128 33
-                 C 152 31, 180 37, 186 49
+                 C 116 37, 122 34, 128 32
+                 C 152 30, 180 37, 186 49
                  C 160 45, 130 42, 110 42
                  C 90 42, 60 45, 34 49 Z" fill="#C0435A" opacity="0.85" id="lipsTop"/>
         <!-- Bottom lip: matches traceLipsBottom() in the capture canvas exactly -->
@@ -528,7 +534,6 @@
         <button class="modeTab" data-mode="both">Both</button>
       </div>
       <div style="display:flex; align-items:center; gap:8px;">
-        <button id="testModeBtn" title="Toggle test mode" style="font-size:11px; padding:5px 9px; border-radius:6px; background:rgba(169,63,97,0.3); border:1px solid rgba(232,180,188,0.4); color:var(--rose); font-weight:700; font-family:'Manrope';">TEST</button>
         <button id="helpBtn" title="How to use">?</button>
         <button id="premiumBtn">Premium</button>
       </div>
@@ -585,7 +590,6 @@
   <div id="toast"></div>
 
   <div id="bottomPanel">
-    <div id="hintStrip">Swipe ↕ to position · tap a color to try it</div>
     <div id="swatchHint">Tap a shade to try it on</div>
     <div class="swatchGroup" id="lipSwatchGroup">
       <div class="groupLabel">Lipstick <span id="lipCountLabel"></span></div>
@@ -598,9 +602,12 @@
       <div class="swatchRow" id="eyeSwatchRow"></div>
     </div>
     <div id="captureRow">
+      <div id="hintStrip">Swipe ↕ to position · tap a color to try it</div>
       <button class="roundBtn" id="flipCamBtn" title="Flip camera">⟲</button>
-      <button id="shutter" disabled></button>
-      <button class="roundBtn" id="resetBtn" title="Reset position">↺</button>
+      <button id="shutter" disabled>Take a selfie</button>
+      <div id="editBtnGroup">
+        <button class="roundBtn" id="resetBtn" title="Reset position">↺</button>
+      </div>
     </div>
   </div>
 
@@ -752,90 +759,11 @@
   /* ---------------- camera ---------------- */
   const video = document.getElementById('video');
   const camPlaceholder = document.getElementById('camPlaceholder');
-  const testCanvas = document.getElementById('testCanvas');
   let currentStream = null;
-  let testModeActive = false;
 
-  /* Test mode: generates a simple placeholder face so you can test dragging/colors without camera */
-  function initTestMode(){
-    const canvas = testCanvas;
-    const w = canvas.width = 800, h = canvas.height = 1000;
-    const ctx = canvas.getContext('2d');
-    
-    // soft gradient background (like skin)
-    const grad = ctx.createLinearGradient(0,0,0,h);
-    grad.addColorStop(0, '#E8C9B8');
-    grad.addColorStop(1, '#D4A896');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0,0,w,h);
-    
-    // simple face outline
-    ctx.fillStyle = '#D9B5A0';
-    ctx.beginPath();
-    ctx.ellipse(w/2, h*0.35, 140, 180, 0, 0, Math.PI*2);
-    ctx.fill();
-    
-    // eyes (simple circles)
-    ctx.fillStyle = '#FFFFFF';
-    ctx.beginPath();
-    ctx.ellipse(w/2-80, h*0.25, 35, 45, 0, 0, Math.PI*2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(w/2+80, h*0.25, 35, 45, 0, 0, Math.PI*2);
-    ctx.fill();
-    
-    ctx.fillStyle = '#4A3728';
-    ctx.beginPath();
-    ctx.ellipse(w/2-80, h*0.25, 20, 28, 0, 0, Math.PI*2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(w/2+80, h*0.25, 20, 28, 0, 0, Math.PI*2);
-    ctx.fill();
-    
-    // nose
-    ctx.fillStyle = '#C9A895';
-    ctx.beginPath();
-    ctx.moveTo(w/2, h*0.3);
-    ctx.lineTo(w/2-20, h*0.45);
-    ctx.lineTo(w/2+20, h*0.45);
-    ctx.closePath();
-    ctx.fill();
-    
-    // mouth area (simple rectangle where lips go)
-    ctx.strokeStyle = 'rgba(100,50,50,0.2)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(w/2-100, h*0.55, 200, 60);
-  }
-
-  function toggleTestMode(){
-    testModeActive = !testModeActive;
-    if(testModeActive){
-      if(currentStream){
-        currentStream.getTracks().forEach(t=>t.stop());
-        currentStream = null;
-      }
-      video.style.display = 'none';
-      testCanvas.style.display = 'block';
-      initTestMode();
-      camPlaceholder.classList.add('hidden');
-      document.getElementById('shutter').disabled = false;
-      document.getElementById('testModeBtn').style.opacity = '1';
-    } else {
-      video.style.display = 'block';
-      testCanvas.style.display = 'none';
-      camPlaceholder.classList.remove('hidden');
-      document.getElementById('shutter').disabled = true;
-      document.getElementById('testModeBtn').style.opacity = '0.5';
-      startCamera(state.facing);
-    }
-  }
-
-  document.getElementById('testModeBtn').addEventListener('click', toggleTestMode);
-  // Start in real camera mode by default — camPlaceholder shows the "Turn on camera" button immediately
-  testModeActive = false;
+  // Start with the "Turn on camera" prompt showing immediately
   camPlaceholder.classList.remove('hidden');
   document.getElementById('shutter').disabled = true;
-  document.getElementById('testModeBtn').style.opacity = '0.5';
 
   async function startCamera(facing){
     try{
@@ -961,8 +889,13 @@
     state.lips.visible = showLips;
     state.eyes.visible = showEyes;
 
-    lipSwatchGroup.classList.toggle('hidden', !showLips);
-    eyeSwatchGroup.classList.toggle('hidden', !showEyes);
+    // In "both" mode, showing both palettes stacked pushed the capture row off
+    // the bottom panel's visible area — only one palette shows at a time,
+    // defaulting to lips; switch to the Eyes tab to change eyeshadow color.
+    const showLipPalette = (mode==='lips' || mode==='both');
+    const showEyePalette = (mode==='eyes');
+    lipSwatchGroup.classList.toggle('hidden', !showLipPalette);
+    eyeSwatchGroup.classList.toggle('hidden', !showEyePalette);
     lipSizeControls.classList.toggle('hidden', !showLips);
     eyeSizeControls.classList.toggle('hidden', !showEyes);
     eyeSpreadControls.classList.toggle('hidden', !showEyes);
@@ -1152,10 +1085,10 @@
  function traceLipsTop(ctx){
   ctx.beginPath();
   ctx.moveTo(34,49);
-  ctx.bezierCurveTo(40,37, 68,31, 92,33);
+  ctx.bezierCurveTo(40,37, 68,30, 92,32);
   ctx.bezierCurveTo(98,34, 104,37, 110,37);
-  ctx.bezierCurveTo(116,37, 122,34, 128,33);
-  ctx.bezierCurveTo(152,31, 180,37, 186,49);
+  ctx.bezierCurveTo(116,37, 122,34, 128,32);
+  ctx.bezierCurveTo(152,30, 180,37, 186,49);
   ctx.bezierCurveTo(160,45, 130,42, 110,42);
   ctx.bezierCurveTo(90,42, 60,45, 34,49);
   ctx.closePath();
@@ -1227,27 +1160,22 @@ ctx.beginPath();
       const ctx = faceCanvas.getContext('2d');
       ctx.clearRect(0,0,canvasW,canvasH);
 
-      if(testModeActive){
-        const sourceCanvas = testCanvas;
-        ctx.drawImage(sourceCanvas, 0, 0, sourceCanvas.width, sourceCanvas.height, 0, 0, canvasW, canvasH);
-      } else {
-        const vw = video.videoWidth, vh = video.videoHeight;
-        if(vw && vh && video.readyState >= 2){
-          const coverScale = Math.max(stageW / vw, stageH / vh);
-          const visibleW = stageW / coverScale;
-          const visibleH = stageH / coverScale;
-          const sx = (vw - visibleW) / 2;
-          const sy = (vh - visibleH) / 2;
+      const vw = video.videoWidth, vh = video.videoHeight;
+      if(vw && vh && video.readyState >= 2){
+        const coverScale = Math.max(stageW / vw, stageH / vh);
+        const visibleW = stageW / coverScale;
+        const visibleH = stageH / coverScale;
+        const sx = (vw - visibleW) / 2;
+        const sy = (vh - visibleH) / 2;
 
-          ctx.save();
-          ctx.translate(canvasW, 0);
-          ctx.scale(-1, 1);
-          ctx.drawImage(video, sx, sy, visibleW, visibleH, 0, 0, canvasW, canvasH);
-          ctx.restore();
-        } else {
-          ctx.fillStyle = '#0F0B0E';
-          ctx.fillRect(0,0,canvasW,canvasH);
-        }
+        ctx.save();
+        ctx.translate(canvasW, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, sx, sy, visibleW, visibleH, 0, 0, canvasW, canvasH);
+        ctx.restore();
+      } else {
+        ctx.fillStyle = '#0F0B0E';
+        ctx.fillRect(0,0,canvasW,canvasH);
       }
 
       // Store the captured face and enter edit mode
@@ -1263,25 +1191,29 @@ ctx.beginPath();
   function enterEditMode(faceCanvas){
     // Reveal positioning/resizing/color UI now that there's a still photo to place it on
     document.getElementById('app').classList.remove('capturing');
+    document.getElementById('captureRow').classList.add('editing');
 
     // Hide camera, show frozen face
     video.style.display = 'none';
-    testCanvas.style.display = 'none';
-    
+
     // Draw the captured face to snapCanvas and show it
     snapCanvas.width = faceCanvas.width;
     snapCanvas.height = faceCanvas.height;
     const snapCtx = snapCanvas.getContext('2d');
     snapCtx.clearRect(0, 0, snapCanvas.width, snapCanvas.height);
     snapCtx.drawImage(faceCanvas, 0, 0);
-    
+
     snapCanvas.style.display = 'block';
-    
+
     // Update UI: hide shutter, show retake + finalize buttons
     document.getElementById('shutter').style.display = 'none';
     document.getElementById('flipCamBtn').style.display = 'none';
-    
-    // Add or show finalize button
+
+    const editBtnGroup = document.getElementById('editBtnGroup');
+    const resetBtn = document.getElementById('resetBtn');
+
+    // Add or show finalize button — placed first, so it reads left-to-right as
+    // confirm (✓) then the undo-style actions (retake / reset) after it.
     let finalizeBtn = document.getElementById('editFinalizeBtn');
     if(!finalizeBtn){
       finalizeBtn = document.createElement('button');
@@ -1289,12 +1221,12 @@ ctx.beginPath();
       finalizeBtn.className = 'roundBtn';
       finalizeBtn.title = 'Save look';
       finalizeBtn.textContent = '✓';
-      finalizeBtn.style.cssText = 'width:60px; height:60px; font-size:28px; background:#4CAF50; color:white;';
-      document.getElementById('resetBtn').parentElement.insertBefore(finalizeBtn, document.getElementById('resetBtn').nextSibling);
+      finalizeBtn.style.cssText = 'width:46px; height:46px; font-size:22px; background:#4CAF50; color:white;';
+      editBtnGroup.insertBefore(finalizeBtn, editBtnGroup.firstChild);
       finalizeBtn.addEventListener('click', finalizeCapture);
     }
     finalizeBtn.style.display = 'block';
-    
+
     // Retake button
     let retakeBtn = document.getElementById('editRetakeBtn');
     if(!retakeBtn){
@@ -1303,12 +1235,11 @@ ctx.beginPath();
       retakeBtn.className = 'roundBtn';
       retakeBtn.title = 'Retake';
       retakeBtn.textContent = '↺';
-      retakeBtn.style.cssText = 'width:60px; height:60px; font-size:24px;';
-      document.getElementById('resetBtn').parentElement.insertBefore(retakeBtn, document.getElementById('resetBtn'));
+      editBtnGroup.insertBefore(retakeBtn, resetBtn);
       retakeBtn.addEventListener('click', exitEditMode);
     }
     retakeBtn.style.display = 'block';
-    
+
     showToast('Position your makeup, then tap ✓ to save');
   }
 
@@ -1340,15 +1271,12 @@ ctx.beginPath();
     capturedFaceCanvas = null;
     // Back to the live camera — hide positioning/resizing/color UI until the next photo
     document.getElementById('app').classList.add('capturing');
+    document.getElementById('captureRow').classList.remove('editing');
 
     // Show camera, hide frozen image
-    if(testModeActive){
-      testCanvas.style.display = 'block';
-    } else {
-      video.style.display = 'block';
-    }
+    video.style.display = 'block';
     snapCanvas.style.display = 'none';
-    
+
     // Show shutter, hide edit buttons
     document.getElementById('shutter').style.display = 'block';
     document.getElementById('flipCamBtn').style.display = 'block';

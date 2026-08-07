@@ -305,11 +305,14 @@
   /* ---------- bottom panel ---------- */
   /* #captureRow (with the save/finalize button) must never be pushed off
      screen by however tall the swatch library gets, so it sits outside the
-     scrolling area as a pinned footer rather than scrolling along with it. */
+     scrolling area as a pinned footer rather than scrolling along with it.
+     The panel's overall height is kept short so it doesn't creep up over the
+     nose/face area of the captured photo — the brand library scrolls inside
+     its own smaller area rather than growing the whole panel taller. */
   #bottomPanel{
     position:absolute; left:0; right:0; bottom:0;
     z-index:20;
-    max-height:44vh;
+    max-height:34vh;
     display:flex; flex-direction:column;
     background: linear-gradient(180deg, rgba(15,11,14,0), rgba(15,11,14,0.94) 30%, #0F0B0E 60%);
     padding-top:10px;
@@ -457,16 +460,25 @@
     position:absolute; inset:0; z-index:60; background:#000;
     display:flex; flex-direction:column;
   }
-  #captureView img{ flex:1; width:100%; object-fit:contain; background:#000; }
+  /* min-height:0 overrides the flex default of min-height:auto, which for a
+     replaced element (img) otherwise refuses to shrink below its intrinsic
+     size — without it, a tall/wide selfie can push #captureActions (and its
+     Retake/Save/Continue buttons) entirely below the viewport, off-screen. */
+  #captureView img{ flex:1; width:100%; min-height:0; object-fit:contain; background:#000; }
   #captureActions{
-    display:flex; gap:12px; padding:16px 20px calc(var(--safe-bottom) + 16px);
+    display:flex; gap:10px; padding:16px 20px calc(var(--safe-bottom) + 16px);
     background:var(--surface);
   }
-  #captureActions button{
-    flex:1; padding:14px; border-radius:12px; border:1px solid var(--line);
+  #captureActions button, #captureActions a{
+    flex:1; padding:14px 8px; border-radius:12px; border:1px solid var(--line);
     background:var(--surface-2); color:var(--text); font-weight:700; font-family:'Manrope';
+    font-size:13.5px;
   }
   #captureActions .primary{ background:var(--rose); color:#2B171B; border:none; }
+  #captureActions #continueBtn{
+    background: linear-gradient(135deg, var(--gold-bright), var(--gold));
+    color:#241A0C; border:none;
+  }
 </style>
 </head>
 <body>
@@ -1504,11 +1516,17 @@ ctx.beginPath();
       <img src="${dataUrl}" alt="Your Instant Glam selfie">
       <div id="captureActions">
         <button id="retakeBtn">Retake</button>
-        <a class="primary" id="saveBtn" style="text-decoration:none; text-align:center; display:flex; align-items:center; justify-content:center; border-radius:12px;" download="instant-glam.png" href="${dataUrl}">Save photo</button>
+        <a class="primary" id="saveBtn" style="text-decoration:none; text-align:center; display:flex; align-items:center; justify-content:center; border-radius:12px;" download="instant-glam.png" href="${dataUrl}">Save Photo</a>
+        <button id="continueBtn">Continue</button>
       </div>
     `;
     document.getElementById('app').appendChild(view);
+    // Retake discards this look and goes back to the live camera; Continue
+    // does the same dismissal but for someone who's happy with the shot and
+    // just wants to keep using the app (previously there was no such option —
+    // after tapping Save, the screen just sat there with nowhere else to go).
     view.querySelector('#retakeBtn').addEventListener('click', ()=>view.remove());
+    view.querySelector('#continueBtn').addEventListener('click', ()=>view.remove());
   }
 
   /* ---------------- initial layout ---------------- */

@@ -1491,11 +1491,36 @@ ctx.beginPath();
     const resetBtn = document.getElementById('debugResetBtn');
     if(resetBtn){
       resetBtn.addEventListener('click', ()=>{
-        try{
-          localStorage.removeItem('ig_trialStartDate');
-          localStorage.removeItem('ig_subscriptionActive');
-          localStorage.removeItem('ig_subscriptionPlan');
-        }catch(e){}
+        const before = {
+          trial: localStorage.getItem('ig_trialStartDate'),
+          sub: localStorage.getItem('ig_subscriptionActive'),
+          plan: localStorage.getItem('ig_subscriptionPlan')
+        };
+        // localStorage.clear() rather than three removeItem calls — a full
+        // wipe of this origin's storage, so there's no way a key-name typo
+        // or a key set somewhere else survives it.
+        let clearError = null;
+        try{ localStorage.clear(); }catch(e){ clearError = e.message; }
+        const after = {
+          trial: localStorage.getItem('ig_trialStartDate'),
+          sub: localStorage.getItem('ig_subscriptionActive'),
+          plan: localStorage.getItem('ig_subscriptionPlan')
+        };
+        // Blocking alert — guarantees this is seen and that the click really
+        // fired and really ran, before anything else (including the reload)
+        // can happen.
+        alert(
+          'BEFORE clear:\n' +
+          `  ig_trialStartDate = ${before.trial}\n` +
+          `  ig_subscriptionActive = ${before.sub}\n` +
+          `  ig_subscriptionPlan = ${before.plan}\n\n` +
+          (clearError ? `localStorage.clear() FAILED: ${clearError}\n\n` : 'localStorage.clear() ran.\n\n') +
+          'AFTER clear (should all be null):\n' +
+          `  ig_trialStartDate = ${after.trial}\n` +
+          `  ig_subscriptionActive = ${after.sub}\n` +
+          `  ig_subscriptionPlan = ${after.plan}\n\n` +
+          'Tapping OK will reload the page now.'
+        );
         location.reload();
       });
     }

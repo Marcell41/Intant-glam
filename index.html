@@ -233,8 +233,8 @@
   #swatchHint{
     font-size:11px; color:var(--muted); text-align:center; padding:0 16px 4px; font-weight:600;
   }
-  #welcomeModal .modalCardInner{ padding-top:0; padding-bottom:calc(var(--safe-bottom) + 26px); }
-  .stepRow{ display:flex; gap:12px; align-items:flex-start; margin-bottom:9px; }
+  #welcomeModal .modalCard{ padding-bottom:calc(var(--safe-bottom) + 26px); }
+  .stepRow{ display:flex; gap:12px; align-items:flex-start; margin-bottom:16px; }
   .stepNum{
     flex:0 0 auto; width:28px; height:28px; border-radius:50%;
     background:linear-gradient(135deg,var(--gold-bright),var(--gold));
@@ -243,7 +243,7 @@
   }
   .stepText{
     font-family:'Sora', 'Manrope', sans-serif; font-weight:700;
-    font-size:13.5px; line-height:1.35; padding-top:3px;
+    font-size:14.5px; line-height:1.4; padding-top:4px;
   }
   #helpBtn{
     width:34px; height:34px; border-radius:50%; flex:0 0 auto;
@@ -386,28 +386,16 @@
     background:var(--surface);
     border-top-left-radius:24px; border-top-right-radius:24px;
     border:1px solid var(--line); border-bottom:none;
-    max-height:88dvh;
-    overflow:hidden;
-    display:flex; flex-direction:column;
-    position:relative;
-  }
-  /* Scrolling lives on this inner wrapper, not on .modalCard itself — combining
-     border-radius + overflow-y:auto on the same element causes mobile Safari to
-     glitch-clip content during scroll (rounded corner + scroll repaint bug). */
-  .modalCardInner{
-    overflow-y:auto; min-height:0;
-    -webkit-overflow-scrolling:touch;
-    overscroll-behavior:contain;
-    touch-action:pan-y;
     padding:24px 22px calc(var(--safe-bottom) + 22px);
+    max-height:96dvh; overflow-y:auto;
   }
-  .modalHandle{ width:40px; height:4px; border-radius:2px; background:var(--line); margin:10px auto 14px; }
+  .modalHandle{ width:40px; height:4px; border-radius:2px; background:var(--line); margin:14px auto 18px; }
   .heroImg{
-    display:block; width:100%; height:190px;
+    display:block; width:100%; height:320px;
     object-fit:cover; object-position:50% 0%;
     border-radius:16px;
     border-top-left-radius:24px; border-top-right-radius:24px;
-    margin:0;
+    margin:-24px 0 0;
   }
   .modalClose{
     position:absolute; top:18px; right:18px; background:none; border:none;
@@ -415,10 +403,10 @@
   }
   .goldEyebrow{
     font-size:11.5px; font-weight:800; letter-spacing:2px; text-transform:uppercase;
-    color:var(--gold-bright); margin-bottom:6px;
+    color:var(--gold-bright); margin-bottom:8px;
   }
-  .modalTitle{ font-size:26px; font-weight:700; margin:0 0 6px; }
-  .modalSub{ color:var(--muted); font-size:14.5px; line-height:1.5; margin:0 0 12px; }
+  .modalTitle{ font-size:26px; font-weight:700; margin:0 0 8px; }
+  .modalSub{ color:var(--muted); font-size:14.5px; line-height:1.5; margin:0 0 20px; }
 
   .planRow{ display:flex; gap:12px; margin-bottom:16px; }
   .planCard{
@@ -441,7 +429,7 @@
   .featureList li::before{ content:"✓"; color:var(--gold-bright); font-weight:800; }
 
   .ctaBtn{
-    width:100%; padding:14px; border-radius:14px; border:none;
+    width:100%; padding:16px; border-radius:14px; border:none;
     background: linear-gradient(135deg, var(--gold-bright), var(--gold));
     color:#241A0C; font-weight:800; font-size:15.5px; letter-spacing:0.2px;
     font-family:'Manrope';
@@ -481,17 +469,15 @@
 
   <div class="modalWrap" id="welcomeModal">
     <div class="modalCard">
-      <div class="modalCardInner">
-        <img class="heroImg" src="hero.png" alt="Woman applying red lipstick while looking into a lit vanity mirror">
-        <div class="modalHandle"></div>
-        <div class="goldEyebrow">Welcome to</div>
-        <h2 class="modalTitle display" style="font-size:32px;">Instant<span style="color:var(--gold-bright);">Glam</span></h2>
-        <p class="modalSub">Three steps to your look:</p>
-        <div class="stepRow"><div class="stepNum">1</div><div class="stepText">Take a selfie — line up your face in the frame and tap the shutter.</div></div>
-        <div class="stepRow"><div class="stepNum">2</div><div class="stepText">On your captured photo, swipe up or down to fit the lip and eye shapes right where you want them, and use +/− to resize.</div></div>
-        <div class="stepRow"><div class="stepNum">3</div><div class="stepText">Pick whatever color you like from the shades below — mix and match freely.</div></div>
-        <button class="ctaBtn" id="welcomeStartBtn">Let's glam</button>
-      </div>
+      <img class="heroImg" src="hero.png" alt="Woman applying red lipstick while looking into a lit vanity mirror">
+      <div class="modalHandle"></div>
+      <div class="goldEyebrow">Welcome to</div>
+      <h2 class="modalTitle display" style="font-size:32px;">Instant<span style="color:var(--gold-bright);">Glam</span></h2>
+      <p class="modalSub">Three steps to your look:</p>
+      <div class="stepRow"><div class="stepNum">1</div><div class="stepText">Take a selfie — line up your face in the frame and tap the shutter.</div></div>
+      <div class="stepRow"><div class="stepNum">2</div><div class="stepText">On your captured photo, swipe up or down to fit the lip and eye shapes right where you want them, and use +/− to resize.</div></div>
+      <div class="stepRow"><div class="stepNum">3</div><div class="stepText">Pick whatever color you like from the shades below — mix and match freely.</div></div>
+      <button class="ctaBtn" id="welcomeStartBtn">Let's glam</button>
     </div>
   </div>
 
@@ -1052,36 +1038,34 @@
     wrap.innerHTML = `
       <div class="modalCard">
         <button class="modalClose" id="closePremium">✕</button>
-        <div class="modalCardInner">
-          <div class="modalHandle"></div>
-          <div class="goldEyebrow">Instant Glam Premium</div>
-          <h2 class="modalTitle display">Unlock every shade</h2>
-          <p class="modalSub">Get all ${LIP_COLORS.length} lipstick shades and all ${EYE_COLORS.length} eyeshadow shades, saved looks, and no watermark on photos.</p>
+        <div class="modalHandle"></div>
+        <div class="goldEyebrow">Instant Glam Premium</div>
+        <h2 class="modalTitle display">Unlock every shade</h2>
+        <p class="modalSub">Get all ${LIP_COLORS.length} lipstick shades and all ${EYE_COLORS.length} eyeshadow shades, saved looks, and no watermark on photos.</p>
 
-          <div class="planRow">
-            <div class="planCard ${selectedPlan==='monthly'?'selected':''}" data-plan="monthly">
-              <div class="planName">Monthly</div>
-              <div class="planPrice">$6.99 <span>/mo</span></div>
-              <div class="planNote">Billed monthly</div>
-            </div>
-            <div class="planCard ${selectedPlan==='yearly'?'selected':''}" data-plan="yearly">
-              <div class="tag">Best value</div>
-              <div class="planName">Yearly</div>
-              <div class="planPrice">$39.99 <span>/yr</span></div>
-              <div class="planNote">Just $3.33/mo</div>
-            </div>
+        <div class="planRow">
+          <div class="planCard ${selectedPlan==='monthly'?'selected':''}" data-plan="monthly">
+            <div class="planName">Monthly</div>
+            <div class="planPrice">$6.99 <span>/mo</span></div>
+            <div class="planNote">Billed monthly</div>
           </div>
-
-          <ul class="featureList">
-            <li>${LIP_COLORS.length} lipstick shades, ${EYE_COLORS.length} eyeshadow shades</li>
-            <li>Lips and eyes together, fully adjustable</li>
-            <li>Save and share unlimited looks</li>
-            <li>New shades added every month</li>
-          </ul>
-
-          <button class="ctaBtn" id="startTrialBtn">Start 2-day free trial</button>
-          <div class="fineprint">2 days free, then the plan you chose above. Cancel anytime before the trial ends and you won't be charged. By continuing you agree to the Terms and Privacy Policy.</div>
+          <div class="planCard ${selectedPlan==='yearly'?'selected':''}" data-plan="yearly">
+            <div class="tag">Best value</div>
+            <div class="planName">Yearly</div>
+            <div class="planPrice">$39.99 <span>/yr</span></div>
+            <div class="planNote">Just $3.33/mo</div>
+          </div>
         </div>
+
+        <ul class="featureList">
+          <li>${LIP_COLORS.length} lipstick shades, ${EYE_COLORS.length} eyeshadow shades</li>
+          <li>Lips and eyes together, fully adjustable</li>
+          <li>Save and share unlimited looks</li>
+          <li>New shades added every month</li>
+        </ul>
+
+        <button class="ctaBtn" id="startTrialBtn">Start 2-day free trial</button>
+        <div class="fineprint">2 days free, then the plan you chose above. Cancel anytime before the trial ends and you won't be charged. By continuing you agree to the Terms and Privacy Policy.</div>
       </div>
     `;
     document.getElementById('app').appendChild(wrap);

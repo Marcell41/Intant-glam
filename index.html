@@ -748,6 +748,18 @@
   })();
   Paywall.getTrialStart(); // starts the trial clock on first-ever open
 
+  // Debug overlay is opt-in only — visiting with ?debug=1 turns it on and
+  // remembers that choice; ?debug=0 turns it back off. Off by default, so
+  // normal users never see it.
+  const DEBUG_MODE = (function(){
+    try{
+      const params = new URLSearchParams(location.search);
+      if(params.get('debug') === '1'){ localStorage.setItem('ig_debugMode', '1'); return true; }
+      if(params.get('debug') === '0'){ localStorage.removeItem('ig_debugMode'); return false; }
+      return localStorage.getItem('ig_debugMode') === '1';
+    }catch(e){ return false; }
+  })();
+
   // Basic shades — free forever, trial or no trial, subscribed or not.
   const BASIC_LIP_COLORS = [
     {name:'Ruby Red',    hex:'#B32036'},
@@ -1446,11 +1458,10 @@ ctx.beginPath();
     }
   });
 
-  // TEMPORARY diagnostic — shows the raw values Paywall.hasFullAccess() is
-  // actually computing from, right at the moment gating is checked, so it's
-  // visible whether the check ran at all and what it found (vs. inferring it
-  // from swatch appearance). Remove once the gating report is resolved.
+  // Diagnostic overlay for the trial/subscription gating check — opt-in only
+  // (see DEBUG_MODE above). Visit the site with ?debug=1 once to turn it on.
   function updateDebugBanner(){
+    if(!DEBUG_MODE) return;
     const el = document.getElementById('debugBanner');
     if(!el) return;
 

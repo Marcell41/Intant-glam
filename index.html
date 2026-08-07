@@ -303,12 +303,19 @@
   .eyeExtra .lbl{ font-size:7px; letter-spacing:0.8px; color:var(--muted); text-align:center; padding:3px 2px 5px; border-top:1px solid var(--line);}
 
   /* ---------- bottom panel ---------- */
+  /* #captureRow (with the save/finalize button) must never be pushed off
+     screen by however tall the swatch library gets, so it sits outside the
+     scrolling area as a pinned footer rather than scrolling along with it. */
   #bottomPanel{
     position:absolute; left:0; right:0; bottom:0;
     z-index:20;
-   max-height:32vh;
-  overflow-y:auto; background: linear-gradient(180deg, rgba(15,11,14,0), rgba(15,11,14,0.94) 30%, #0F0B0E 60%);
-    padding: 10px 0 calc(var(--safe-bottom) + 14px);
+    max-height:44vh;
+    display:flex; flex-direction:column;
+    background: linear-gradient(180deg, rgba(15,11,14,0), rgba(15,11,14,0.94) 30%, #0F0B0E 60%);
+    padding-top:10px;
+  }
+  #swatchScroll{
+    overflow-y:auto; flex:1 1 auto; min-height:0;
   }
   .swatchGroup{ margin-bottom:6px; }
   .swatchGroup .groupLabel{
@@ -354,7 +361,8 @@
 
   #captureRow{
     display:flex; align-items:center; justify-content:center; gap:22px;
-    padding:6px 16px 4px;
+    flex:0 0 auto;
+    padding:6px 16px calc(var(--safe-bottom) + 14px);
   }
   #captureRow.editing{
     justify-content:space-between; gap:12px;
@@ -410,14 +418,31 @@
   .modalSub{ color:var(--muted); font-size:14.5px; line-height:1.5; margin:0 0 20px; }
 
   .ctaBtn{
-    width:100%; padding:16px; border-radius:14px; border:none;
+    width:100%; padding:14px; border-radius:14px; border:none;
     background: linear-gradient(135deg, var(--gold-bright), var(--gold));
     color:#241A0C; font-weight:800; font-size:15.5px; letter-spacing:0.2px;
     font-family:'Manrope';
+    display:flex; flex-direction:column; align-items:center; gap:2px;
   }
   .ctaBtn:active{ transform:scale(0.99); }
+  .ctaBtn .subBtnSub{ font-weight:700; font-size:12px; opacity:0.75; letter-spacing:0.1px; }
   .fineprint{ text-align:center; font-size:11.5px; color:var(--muted); margin-top:12px; line-height:1.5; }
   .fineprint a{ color:var(--rose); }
+
+  .planToggle{
+    display:flex; gap:8px; margin-bottom:16px;
+  }
+  .planToggleBtn{
+    flex:1; padding:12px 10px; border-radius:12px;
+    border:1.5px solid var(--line); background:var(--surface-2);
+    color:var(--text); font-family:'Manrope'; text-align:left;
+  }
+  .planToggleBtn .planToggleName{ font-weight:700; font-size:13.5px; }
+  .planToggleBtn .planTogglePrice{ font-size:12px; color:var(--muted); margin-top:2px; }
+  .planToggleBtn.active{
+    border-color:var(--gold); background:linear-gradient(155deg,#2A2118,var(--surface-2) 55%);
+  }
+  .planToggleBtn.active .planTogglePrice{ color:var(--gold-bright); }
 
   /* preview toast */
   #toast{
@@ -582,18 +607,20 @@
   <div id="toast"></div>
 
   <div id="bottomPanel">
-    <div id="swatchHint">Tap a shade to try it on</div>
-    <div class="swatchGroup" id="lipSwatchGroup">
-      <div class="groupLabel">Lipstick</div>
-      <div class="swatchRow" id="lipBasicRow"></div>
-      <div class="brandHeader">Premium Brand Library</div>
-      <div class="brandSection" id="lipBrandSection"></div>
-    </div>
-    <div class="swatchGroup hidden" id="eyeSwatchGroup">
-      <div class="groupLabel">Eyeshadow</div>
-      <div class="swatchRow" id="eyeBasicRow"></div>
-      <div class="brandHeader">Premium Brand Library</div>
-      <div class="brandSection" id="eyeBrandSection"></div>
+    <div id="swatchScroll">
+      <div id="swatchHint">Tap a shade to try it on</div>
+      <div class="swatchGroup" id="lipSwatchGroup">
+        <div class="groupLabel">Lipstick</div>
+        <div class="swatchRow" id="lipBasicRow"></div>
+        <div class="brandHeader">Premium Brand Library</div>
+        <div class="brandSection" id="lipBrandSection"></div>
+      </div>
+      <div class="swatchGroup hidden" id="eyeSwatchGroup">
+        <div class="groupLabel">Eyeshadow</div>
+        <div class="swatchRow" id="eyeBasicRow"></div>
+        <div class="brandHeader">Premium Brand Library</div>
+        <div class="brandSection" id="eyeBrandSection"></div>
+      </div>
     </div>
     <div id="captureRow">
       <div id="hintStrip">Swipe ↕ to position · tap a color to try it</div>
@@ -675,9 +702,12 @@
       // MOCK — replace with the StoreKit / Play Billing "restore purchases" call.
       return isSubscribed();
     }
+    function getPlan(){
+      try{ return localStorage.getItem(KEYS.plan); }catch(e){ return null; }
+    }
     return {
       TRIAL_DAYS, getTrialStart, getTrialEnd, isTrialActive, trialDaysLeft,
-      isSubscribed, hasFullAccess, getStatus, subscribe, restorePurchases
+      isSubscribed, hasFullAccess, getStatus, subscribe, restorePurchases, getPlan
     };
   })();
   Paywall.getTrialStart(); // starts the trial clock on first-ever open
@@ -1115,12 +1145,24 @@
   /* ---------------- upgrade screen ---------------- */
   const premiumBtn = document.getElementById('premiumBtn');
 
+  const PLAN_PRICES = {
+    yearly:  { price: 28,   label: '$28/year',    sub: 'Just $2.33/month' },
+    monthly: { price: 4.99, label: '$4.99/month', sub: null }
+  };
+
+  function subscribeBtnHTML(plan){
+    const p = PLAN_PRICES[plan];
+    return `<span class="subBtnMain">Start Subscription — ${p.label}</span>`
+      + (p.sub ? `<span class="subBtnSub">${p.sub}</span>` : '');
+  }
+
   function openUpgradeScreen(){
     if(document.getElementById('upgradeModal')) return; // already open, don't stack another
     // Reminder framing mid-trial, hard-wall framing once it's actually expired.
     const headline = Paywall.getStatus() === 'trial'
       ? 'Your free trial is almost up'
       : 'Unlock the full glam library';
+    let plan = 'yearly';
 
     const wrap = document.createElement('div');
     wrap.className = 'modalWrap';
@@ -1132,18 +1174,38 @@
         <div class="goldEyebrow">Instant Glam Premium</div>
         <h2 class="modalTitle display">${headline}</h2>
         <p class="modalSub">You've had a taste of Instant Glam. Get unlimited access to premium shades from the top brands you already use and know well. For less than three dollars a month.</p>
-        <button class="ctaBtn" id="startSubscriptionBtn">Start Subscription — $30/year</button>
+        <div class="planToggle">
+          <button class="planToggleBtn active" data-plan="yearly">
+            <div class="planToggleName">Yearly</div>
+            <div class="planTogglePrice">$28/yr · $2.33/mo</div>
+          </button>
+          <button class="planToggleBtn" data-plan="monthly">
+            <div class="planToggleName">Monthly</div>
+            <div class="planTogglePrice">$4.99/mo</div>
+          </button>
+        </div>
+        <button class="ctaBtn" id="startSubscriptionBtn">${subscribeBtnHTML(plan)}</button>
         <div class="fineprint">Cancel anytime.</div>
       </div>
     `;
     document.getElementById('app').appendChild(wrap);
 
+    const subscribeBtn = wrap.querySelector('#startSubscriptionBtn');
+    wrap.querySelectorAll('.planToggleBtn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        plan = btn.dataset.plan;
+        wrap.querySelectorAll('.planToggleBtn').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        subscribeBtn.innerHTML = subscribeBtnHTML(plan);
+      });
+    });
+
     wrap.querySelector('#closeUpgrade').addEventListener('click', ()=>wrap.remove());
     wrap.addEventListener('click', (e)=>{ if(e.target===wrap) wrap.remove(); });
-    wrap.querySelector('#startSubscriptionBtn').addEventListener('click', ()=>{
+    subscribeBtn.addEventListener('click', ()=>{
       // MOCK activation — replace with the real StoreKit / Play Billing
       // purchase flow; only call Paywall.subscribe() once that confirms.
-      Paywall.subscribe('yearly');
+      Paywall.subscribe(plan);
       refreshSwatches();
       wrap.remove();
       showToast('Subscribed — enjoy the full brand library ✨');
@@ -1169,8 +1231,10 @@
 
     let statusLine, subLine;
     if(status === 'subscribed'){
+      const plan = Paywall.getPlan();
       statusLine = 'Premium — Active';
-      subLine = 'You have full access to every basic shade and the entire premium brand library.';
+      subLine = `You have full access to every basic shade and the entire premium brand library`
+        + (plan ? ` (${plan === 'monthly' ? 'Monthly' : 'Yearly'} plan).` : '.');
     } else if(status === 'trial'){
       statusLine = `Free Trial — ${daysLeft} day${daysLeft===1?'':'s'} left`;
       subLine = `Your trial started ${startStr} and includes full access to the premium brand library. Basic shades stay free forever either way.`;
@@ -1192,7 +1256,7 @@
         ${status === 'subscribed' ? `
           <div class="fineprint" style="text-align:left; margin-bottom:16px;">Manage or cancel your subscription from your device's App Store / Play Store account settings.</div>
         ` : `
-          <button class="ctaBtn" id="accountUpgradeBtn">${status==='trial' ? 'Upgrade now — $30/year' : 'Start Subscription — $30/year'}</button>
+          <button class="ctaBtn" id="accountUpgradeBtn">${status==='trial' ? 'Upgrade Now' : 'Start Subscription'}</button>
           <div class="fineprint" style="margin-bottom:16px;">Cancel anytime.</div>
         `}
         <button class="ctaBtn" id="restorePurchasesBtn" style="background:transparent; border:1px solid var(--line); color:var(--text); box-shadow:none;">Restore Purchases</button>
@@ -1334,6 +1398,11 @@ ctx.beginPath();
     // Reveal positioning/resizing/color UI now that there's a still photo to place it on
     document.getElementById('app').classList.remove('capturing');
     document.getElementById('captureRow').classList.add('editing');
+
+    // Re-check trial/subscription status right here, at the moment the swatch
+    // panel actually becomes usable, instead of relying only on the gating
+    // state computed once at page load.
+    refreshSwatches();
 
     // Hide camera, show frozen face
     video.style.display = 'none';

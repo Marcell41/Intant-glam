@@ -1470,18 +1470,35 @@ ctx.beginPath();
     const status = Paywall.getStatus();
     const access = Paywall.hasFullAccess();
     const rawStart = (()=>{ try{ return localStorage.getItem('ig_trialStartDate'); }catch(e){ return '(unreadable)'; } })();
+    const rawSubscribed = (()=>{ try{ return localStorage.getItem('ig_subscriptionActive'); }catch(e){ return '(unreadable)'; } })();
+    const rawPlan = (()=>{ try{ return localStorage.getItem('ig_subscriptionPlan'); }catch(e){ return '(unreadable)'; } })();
 
     el.innerHTML =
       `DEBUG — gating check ran at ${now.toLocaleTimeString()}<br>` +
       `localStorage: ${storageTest}<br>` +
       `raw ig_trialStartDate: ${rawStart}<br>` +
+      `raw ig_subscriptionActive: ${rawSubscribed}<br>` +
+      `raw ig_subscriptionPlan: ${rawPlan}<br>` +
       `trial start: ${start.toLocaleString()}<br>` +
       `trial end: ${end.toLocaleString()}<br>` +
       `now: ${now.toLocaleString()}<br>` +
       `Paywall.getStatus(): ${status}<br>` +
       `Paywall.hasFullAccess(): ${access}<br>` +
-      `→ premium swatches should be: ${access ? 'UNLOCKED' : 'LOCKED'}`;
+      `→ premium swatches should be: ${access ? 'UNLOCKED' : 'LOCKED'}<br>` +
+      `<button id="debugResetBtn" style="margin-top:6px; padding:6px 10px; background:#3CFF7A; color:#000; border:none; border-radius:4px; font-family:inherit; font-size:10px; font-weight:700;">Clear paywall state &amp; reload</button>`;
     el.classList.remove('hidden');
+
+    const resetBtn = document.getElementById('debugResetBtn');
+    if(resetBtn){
+      resetBtn.addEventListener('click', ()=>{
+        try{
+          localStorage.removeItem('ig_trialStartDate');
+          localStorage.removeItem('ig_subscriptionActive');
+          localStorage.removeItem('ig_subscriptionPlan');
+        }catch(e){}
+        location.reload();
+      });
+    }
   }
 
   function enterEditMode(faceCanvas){

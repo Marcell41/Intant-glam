@@ -455,6 +455,18 @@
   }
   .planToggleBtn.active .planTogglePrice{ color:var(--gold-bright); }
 
+  /* TEMPORARY diagnostic banner — remove once the gating report is resolved.
+     Sits above literally everything (z-index higher than modals/captureView)
+     so it can never be hidden, scrolled past, or missed. */
+  #debugBanner{
+    position:absolute; top:0; left:0; right:0; z-index:999;
+    background:#000; color:#3CFF7A;
+    font-family:'Courier New', monospace; font-size:10px; line-height:1.5;
+    padding:6px 8px; word-break:break-all;
+    border-bottom:2px solid #3CFF7A;
+    max-height:30vh; overflow-y:auto;
+  }
+
   /* preview toast */
   #toast{
     position:absolute; left:50%; bottom:130px; transform:translateX(-50%);
@@ -492,6 +504,8 @@
 <body>
 
 <div id="app" class="capturing">
+
+  <div id="debugBanner" class="hidden"></div>
 
   <div class="modalWrap" id="welcomeModal">
     <div class="modalCard">
@@ -1432,6 +1446,44 @@ ctx.beginPath();
     }
   });
 
+  // TEMPORARY diagnostic — shows the raw values Paywall.hasFullAccess() is
+  // actually computing from, right at the moment gating is checked, so it's
+  // visible whether the check ran at all and what it found (vs. inferring it
+  // from swatch appearance). Remove once the gating report is resolved.
+  function updateDebugBanner(){
+    const el = document.getElementById('debugBanner');
+    if(!el) return;
+
+    let storageTest;
+    try{
+      const probe = 'ig_debug_probe_' + Date.now();
+      localStorage.setItem(probe, '1');
+      storageTest = localStorage.getItem(probe) === '1' ? 'OK (persists)' : 'FAIL (read mismatch)';
+      localStorage.removeItem(probe);
+    }catch(e){
+      storageTest = 'FAIL (' + e.message + ') — localStorage blocked, trial cannot persist';
+    }
+
+    const start = Paywall.getTrialStart();
+    const end = Paywall.getTrialEnd();
+    const now = new Date();
+    const status = Paywall.getStatus();
+    const access = Paywall.hasFullAccess();
+    const rawStart = (()=>{ try{ return localStorage.getItem('ig_trialStartDate'); }catch(e){ return '(unreadable)'; } })();
+
+    el.innerHTML =
+      `DEBUG — gating check ran at ${now.toLocaleTimeString()}<br>` +
+      `localStorage: ${storageTest}<br>` +
+      `raw ig_trialStartDate: ${rawStart}<br>` +
+      `trial start: ${start.toLocaleString()}<br>` +
+      `trial end: ${end.toLocaleString()}<br>` +
+      `now: ${now.toLocaleString()}<br>` +
+      `Paywall.getStatus(): ${status}<br>` +
+      `Paywall.hasFullAccess(): ${access}<br>` +
+      `→ premium swatches should be: ${access ? 'UNLOCKED' : 'LOCKED'}`;
+    el.classList.remove('hidden');
+  }
+
   function enterEditMode(faceCanvas){
     // Reveal positioning/resizing/color UI now that there's a still photo to place it on
     document.getElementById('app').classList.remove('capturing');
@@ -1440,6 +1492,7 @@ ctx.beginPath();
     // Re-check trial/subscription status right here, at the moment the swatch
     // panel actually becomes usable, instead of relying only on the gating
     // state computed once at page load.
+    updateDebugBanner();
     refreshSwatches();
 
     // Hide camera, show frozen face

@@ -315,19 +315,20 @@
     font-size:11px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase;
     color:var(--muted); padding:0 16px 6px;
   }
-  .pageTabs{
-    display:flex; gap:8px; padding:0 16px 8px;
+  .brandHeader{
+    display:flex; align-items:center; gap:6px;
+    font-size:10.5px; font-weight:800; letter-spacing:1.2px; text-transform:uppercase;
+    color:var(--gold-bright); padding:2px 16px 4px; margin-top:2px;
   }
-  .pageTabs button{
-    flex:0 0 auto;
-    font-family:inherit; font-size:11px; font-weight:700; letter-spacing:0.4px;
-    color:var(--muted); background:rgba(245,237,233,0.06);
-    border:1px solid rgba(245,237,233,0.14); border-radius:999px;
-    padding:5px 14px; cursor:pointer;
+  .brandHeader::before, .brandHeader::after{
+    content:""; flex:1; height:1px; background:rgba(201,162,39,0.3);
   }
-  .pageTabs button.active{
-    color:var(--bg); background:var(--gold-bright); border-color:var(--gold-bright);
+  .brandRow{ margin-bottom:2px; }
+  .brandLabel{
+    font-size:10.5px; font-weight:700; letter-spacing:0.4px;
+    color:var(--muted); padding:4px 16px 2px;
   }
+  .brandLabel .lockDot{ color:var(--gold-bright); }
   .swatchRow{
     display:flex; gap:10px; overflow-x:auto; padding:2px 16px 10px;
     scrollbar-width:none;
@@ -407,26 +408,6 @@
   }
   .modalTitle{ font-size:26px; font-weight:700; margin:0 0 8px; }
   .modalSub{ color:var(--muted); font-size:14.5px; line-height:1.5; margin:0 0 20px; }
-
-  .planRow{ display:flex; gap:12px; margin-bottom:16px; }
-  .planCard{
-    flex:1; border:1.5px solid var(--line); border-radius:16px; padding:16px 14px;
-    position:relative; background:var(--surface-2);
-  }
-  .planCard.selected{ border-color:var(--gold); background:linear-gradient(155deg,#2A2118,var(--surface-2) 55%); }
-  .planCard .tag{
-    position:absolute; top:-10px; left:14px; background:var(--gold);
-    color:#241A0C; font-size:10px; font-weight:800; letter-spacing:0.5px;
-    padding:3px 8px; border-radius:999px; text-transform:uppercase;
-  }
-  .planCard .planName{ font-weight:700; font-size:14.5px; margin-bottom:4px; }
-  .planCard .planPrice{ font-family:'Playfair Display'; font-size:21px; font-weight:700; }
-  .planCard .planPrice span{ font-family:'Manrope'; font-size:12px; color:var(--muted); font-weight:600; }
-  .planCard .planNote{ font-size:11.5px; color:var(--muted); margin-top:4px; }
-
-  .featureList{ list-style:none; padding:0; margin:0 0 20px; }
-  .featureList li{ display:flex; gap:10px; align-items:flex-start; font-size:14px; color:var(--text); padding:6px 0; }
-  .featureList li::before{ content:"✓"; color:var(--gold-bright); font-weight:800; }
 
   .ctaBtn{
     width:100%; padding:16px; border-radius:14px; border:none;
@@ -603,14 +584,16 @@
   <div id="bottomPanel">
     <div id="swatchHint">Tap a shade to try it on</div>
     <div class="swatchGroup" id="lipSwatchGroup">
-      <div class="groupLabel">Lipstick <span id="lipCountLabel"></span></div>
-      <div class="pageTabs" id="lipPageTabs"></div>
-      <div class="swatchRow" id="lipSwatchRow"></div>
+      <div class="groupLabel">Lipstick</div>
+      <div class="swatchRow" id="lipBasicRow"></div>
+      <div class="brandHeader">Premium Brand Library</div>
+      <div class="brandSection" id="lipBrandSection"></div>
     </div>
     <div class="swatchGroup hidden" id="eyeSwatchGroup">
-      <div class="groupLabel">Eyeshadow <span id="eyeCountLabel"></span></div>
-      <div class="pageTabs" id="eyePageTabs"></div>
-      <div class="swatchRow" id="eyeSwatchRow"></div>
+      <div class="groupLabel">Eyeshadow</div>
+      <div class="swatchRow" id="eyeBasicRow"></div>
+      <div class="brandHeader">Premium Brand Library</div>
+      <div class="brandSection" id="eyeBrandSection"></div>
     </div>
     <div id="captureRow">
       <div id="hintStrip">Swipe ↕ to position · tap a color to try it</div>
@@ -631,140 +614,233 @@
   /* ---------------- state ---------------- */
   const state = {
     mode: 'lips',                // lips | eyes | both
-    isPremium: false,
     lips: { x:0, y:0, scale:0.448, color:'#C0435A', visible:true },
     eyes: { x:0, y:-40, scale:0.8, spread:1, color:'#8A6FB3', visible:false },
     facing: 'user'
   };
 
-  const LIP_COLORS = [
-    // free
-    {name:'Ruby Red',    hex:'#B32036', free:true},
-    {name:'Coral Pop',   hex:'#E4634E', free:true},
-    {name:'Nude Rose',   hex:'#C97B72', free:true},
-    {name:'Berry Wine',  hex:'#7A2643', free:true},
-    {name:'Classic Pink', hex:'#D8788F', free:true},
-    {name:'Rich Mauve',  hex:'#8C5361', free:true},
-    // premium
-    {name:'Midnight Plum',   hex:'#4A1F3D', free:false},
-    {name:'24K Gold Shimmer', hex:'#C9A227', free:false},
-    {name:'Scarlet Noir',    hex:'#8A0B23', free:false},
-    {name:'Blush Diamond',   hex:'#E9AFC0', free:false},
-    {name:'Brick Red',       hex:'#9C3B2E', free:false},
-    {name:'Terracotta',      hex:'#C1603F', free:false},
-    {name:'Ballet Pink',     hex:'#E3B4BE', free:false},
-    {name:'Deep Burgundy',   hex:'#5C1F2C', free:false},
-    {name:'Chestnut Brown',  hex:'#6B3A2E', free:false},
-    {name:'Tawny Rose',      hex:'#B8695E', free:false},
-    {name:'Poppy Red',       hex:'#D3311F', free:false},
-    {name:'Garnet',          hex:'#701F2C', free:false},
-    {name:'Cinnamon Spice',  hex:'#A5502E', free:false},
-    {name:'Raspberry Crush', hex:'#B0284F', free:false},
-    {name:'Merlot',          hex:'#4E1B2C', free:false},
-    {name:'Dusty Rose',      hex:'#B98187', free:false},
-    {name:'Fuchsia Flash',   hex:'#C22D74', free:false},
-    {name:'Vintage Rosewood', hex:'#7D4249', free:false},
-    {name:'Cherry Bomb',     hex:'#C41E3A', free:false},
-    {name:'Mocha Nude',      hex:'#A67B5B', free:false},
-    {name:'Soft Peony',      hex:'#E8A0AE', free:false},
-    {name:'Wine Stain',      hex:'#6B1F33', free:false},
-    {name:'Apricot Kiss',    hex:'#E8875A', free:false},
-    {name:'Rosewood',        hex:'#8B4A47', free:false},
-    {name:'Candy Apple',     hex:'#D0142A', free:false},
-    {name:'Toffee',          hex:'#9C6B47', free:false},
-    {name:'Petal Pink',      hex:'#F0B8C4', free:false},
-    {name:'Deep Plum',       hex:'#451F3B', free:false},
-    {name:'Sienna Red',      hex:'#A0432E', free:false},
-    {name:'Cocoa',           hex:'#5C3A2E', free:false},
-    {name:'Watermelon',      hex:'#E14D5C', free:false},
-    {name:'Mahogany',        hex:'#6E2E28', free:false},
-    {name:'Rose Petal',      hex:'#D68A9A', free:false},
-    {name:'Crimson',         hex:'#A8192E', free:false},
-    {name:'Honey Beige',     hex:'#C9A57E', free:false},
-    {name:'Orchid',          hex:'#B85C9E', free:false},
-    {name:'Sangria',         hex:'#6B0F2A', free:false},
-    {name:'Peach Fuzz',      hex:'#E8A87C', free:false},
-    {name:'Bordeaux',        hex:'#4E1620', free:false},
-    {name:'Coral Reef',      hex:'#E86A5C', free:false},
-    {name:'Mauve Taupe',     hex:'#9C7B7E', free:false},
-    {name:'Ruby Wine',       hex:'#7A1F35', free:false},
-    {name:'Sunkissed',       hex:'#D97B5E', free:false},
-    {name:'Blackberry',      hex:'#3E2140', free:false},
-    {name:'Guava Pink',      hex:'#E85C7E', free:false},
-    {name:'Chocolate Rose',  hex:'#6B3D3A', free:false},
-    {name:'Flamingo',        hex:'#E85C8E', free:false},
-    {name:'Deep Cranberry',  hex:'#7A1830', free:false},
-    {name:'Nude Beige',      hex:'#C9927E', free:false},
-    {name:'Vixen Red',       hex:'#B01020', free:false},
-    {name:'Dusty Plum',      hex:'#6B4A5C', free:false},
-    {name:'Papaya',          hex:'#E8734E', free:false},
-    {name:'Rosy Brown',      hex:'#B87A6E', free:false},
-    {name:'Mulberry',        hex:'#5E2340', free:false},
+  /* ---------------- paywall / subscription state ----------------
+     Local-only for now. subscribe() and restorePurchases() are the two seams
+     to swap in real receipt validation from Apple StoreKit / Google Play
+     Billing later — nothing else in the file needs to change to wire that up,
+     since every access check below goes through Paywall.hasFullAccess(). */
+  const Paywall = (function(){
+    const KEYS = {
+      trialStart: 'ig_trialStartDate',
+      subscribed: 'ig_subscriptionActive',
+      plan: 'ig_subscriptionPlan'
+    };
+    const TRIAL_DAYS = 3;
+    const DAY_MS = 24 * 60 * 60 * 1000;
+
+    function getTrialStart(){
+      let iso = null;
+      try{ iso = localStorage.getItem(KEYS.trialStart); }catch(e){}
+      if(!iso){
+        iso = new Date().toISOString();
+        try{ localStorage.setItem(KEYS.trialStart, iso); }catch(e){}
+      }
+      return new Date(iso);
+    }
+    function getTrialEnd(){
+      return new Date(getTrialStart().getTime() + TRIAL_DAYS * DAY_MS);
+    }
+    function isTrialActive(){
+      return Date.now() < getTrialEnd().getTime();
+    }
+    function trialDaysLeft(){
+      return Math.max(0, Math.ceil((getTrialEnd().getTime() - Date.now()) / DAY_MS));
+    }
+    function isSubscribed(){
+      try{ return localStorage.getItem(KEYS.subscribed) === '1'; }catch(e){ return false; }
+    }
+    function hasFullAccess(){
+      return isSubscribed() || isTrialActive();
+    }
+    function getStatus(){
+      if(isSubscribed()) return 'subscribed';
+      if(isTrialActive()) return 'trial';
+      return 'expired';
+    }
+    function subscribe(plan){
+      // MOCK activation — replace with real receipt validation from StoreKit /
+      // Play Billing. Only flip local state once the platform confirms a
+      // completed purchase.
+      try{
+        localStorage.setItem(KEYS.subscribed, '1');
+        localStorage.setItem(KEYS.plan, plan || 'yearly');
+      }catch(e){}
+    }
+    function restorePurchases(){
+      // MOCK — replace with the StoreKit / Play Billing "restore purchases" call.
+      return isSubscribed();
+    }
+    return {
+      TRIAL_DAYS, getTrialStart, getTrialEnd, isTrialActive, trialDaysLeft,
+      isSubscribed, hasFullAccess, getStatus, subscribe, restorePurchases
+    };
+  })();
+  Paywall.getTrialStart(); // starts the trial clock on first-ever open
+
+  // Basic shades — free forever, trial or no trial, subscribed or not.
+  const BASIC_LIP_COLORS = [
+    {name:'Ruby Red',    hex:'#B32036'},
+    {name:'Coral Pop',   hex:'#E4634E'},
+    {name:'Nude Rose',   hex:'#C97B72'},
+    {name:'Berry Wine',  hex:'#7A2643'},
+    {name:'Classic Pink', hex:'#D8788F'},
+    {name:'Rich Mauve',  hex:'#8C5361'},
   ];
 
-  const EYE_COLORS = [
-    // free
-    {name:'Rose Gold',   hex:'#B9797E', free:true},
-    {name:'Champagne',   hex:'#D9C39A', free:true},
-    {name:'Smoky Taupe', hex:'#6B5B54', free:true},
-    {name:'Soft Lilac',  hex:'#A695C8', free:true},
-    {name:'Bronze',      hex:'#8A5A2E', free:true},
-    {name:'Slate Grey',  hex:'#5C6068', free:true},
-    // premium
-    {name:'Emerald Flash',   hex:'#1F6E4A', free:false},
-    {name:'Sapphire Smoke',  hex:'#274D7A', free:false},
-    {name:'Amethyst Foil',   hex:'#5B2E7E', free:false},
-    {name:'Onyx Shimmer',    hex:'#1A1A1D', free:false},
-    {name:'Copper Glow',     hex:'#A65B2E', free:false},
-    {name:'Peach Bloom',     hex:'#E3A57E', free:false},
-    {name:'Mauve Mist',      hex:'#9C7A87', free:false},
-    {name:'Espresso',        hex:'#3B2A21', free:false},
-    {name:'Golden Olive',    hex:'#7C7238', free:false},
-    {name:'Smoky Charcoal',  hex:'#3A3A3D', free:false},
-    {name:'Icy Silver',      hex:'#B9BEC4', free:false},
-    {name:'Berry Plum',      hex:'#5E2E4E', free:false},
-    {name:'Sunset Terracotta', hex:'#B36A3F', free:false},
-    {name:'Forest Green',    hex:'#2E4A2E', free:false},
-    {name:'Midnight Navy',   hex:'#22304E', free:false},
-    {name:'Rose Taupe',      hex:'#8C6B66', free:false},
-    {name:'Warm Sand',       hex:'#C9A876', free:false},
-    {name:'Deep Merlot',     hex:'#4A1F2E', free:false},
-    {name:'Olive Gold',      hex:'#6B6B2E', free:false},
-    {name:'Storm Grey',      hex:'#6B6E74', free:false},
-    {name:'Rusty Copper',    hex:'#A05A2E', free:false},
-    {name:'Plum Smoke',      hex:'#5A2E4A', free:false},
-    {name:'Dusty Blue',      hex:'#5E7A8C', free:false},
-    {name:'Champagne Gold',  hex:'#C9A85E', free:false},
-    {name:'Deep Teal',       hex:'#1E4A4A', free:false},
-    {name:'Sable Brown',     hex:'#4A3225', free:false},
-    {name:'Iced Lavender',   hex:'#B8A8C9', free:false},
-    {name:'Antique Bronze',  hex:'#7A5A2E', free:false},
-    {name:'Charcoal Grey',   hex:'#3E3E42', free:false},
-    {name:'Rose Bronze',     hex:'#A06B5E', free:false},
-    {name:'Verdant Green',   hex:'#2E5E3A', free:false},
-    {name:'Twilight Purple', hex:'#3A2050', free:false},
-    {name:'Warm Taupe',      hex:'#8C6E5C', free:false},
-    {name:'Steel Blue',      hex:'#3E5C7A', free:false},
-    {name:'Cinnamon Bronze', hex:'#8C5A2E', free:false},
-    {name:'Pearl Grey',      hex:'#C0C4C8', free:false},
-    {name:'Deep Amethyst',   hex:'#4A1E5E', free:false},
-    {name:'Golden Sand',     hex:'#C9A26B', free:false},
-    {name:'Slate Blue',      hex:'#4A5A7A', free:false},
-    {name:'Espresso Brown',  hex:'#3A2418', free:false},
-    {name:'Mint Smoke',      hex:'#5E7A6E', free:false},
-    {name:'Rose Quartz',     hex:'#C98C9C', free:false},
-    {name:'Deep Forest',     hex:'#1E3E22', free:false},
-    {name:'Bronzed Peach',   hex:'#C9825E', free:false},
-    {name:'Wine Purple',     hex:'#4E1E3A', free:false},
-    {name:'Frosted Silver',  hex:'#A8ACB0', free:false},
-    {name:'Burnt Sienna',    hex:'#8C4A2E', free:false},
-    {name:'Lilac Mist',      hex:'#A88CB8', free:false},
-    {name:'Deep Navy',       hex:'#1A2440', free:false},
-    {name:'Golden Bronze',   hex:'#A67C3E', free:false},
-    {name:'Smoky Rose',      hex:'#7A5A5E', free:false},
-    {name:'Sage Green',      hex:'#6E7A5E', free:false},
-    {name:'Deep Burgundy Eye', hex:'#4A1E2E', free:false},
-    {name:'Champagne Beige', hex:'#C9B48C', free:false},
+  // Premium brand library — gated by Paywall.hasFullAccess(). Brand names here
+  // are fictional placeholders (see conversation) to avoid implying a real
+  // partnership/endorsement without licensing; swap in real brand names once
+  // that's in place.
+  const PREMIUM_LIP_BRANDS = [
+    { brand:'Lumière Atelier', shades:[
+      {name:'Midnight Plum',   hex:'#4A1F3D'},
+      {name:'24K Gold Shimmer', hex:'#C9A227'},
+      {name:'Scarlet Noir',    hex:'#8A0B23'},
+      {name:'Blush Diamond',   hex:'#E9AFC0'},
+      {name:'Brick Red',       hex:'#9C3B2E'},
+      {name:'Terracotta',      hex:'#C1603F'},
+      {name:'Ballet Pink',     hex:'#E3B4BE'},
+      {name:'Deep Burgundy',   hex:'#5C1F2C'},
+      {name:'Chestnut Brown',  hex:'#6B3A2E'},
+    ]},
+    { brand:'Velour & Vine', shades:[
+      {name:'Tawny Rose',      hex:'#B8695E'},
+      {name:'Poppy Red',       hex:'#D3311F'},
+      {name:'Garnet',          hex:'#701F2C'},
+      {name:'Cinnamon Spice',  hex:'#A5502E'},
+      {name:'Raspberry Crush', hex:'#B0284F'},
+      {name:'Merlot',          hex:'#4E1B2C'},
+      {name:'Dusty Rose',      hex:'#B98187'},
+      {name:'Fuchsia Flash',   hex:'#C22D74'},
+      {name:'Vintage Rosewood', hex:'#7D4249'},
+    ]},
+    { brand:'Golden Hour Cosmetics', shades:[
+      {name:'Cherry Bomb',     hex:'#C41E3A'},
+      {name:'Mocha Nude',      hex:'#A67B5B'},
+      {name:'Soft Peony',      hex:'#E8A0AE'},
+      {name:'Wine Stain',      hex:'#6B1F33'},
+      {name:'Apricot Kiss',    hex:'#E8875A'},
+      {name:'Rosewood',        hex:'#8B4A47'},
+      {name:'Candy Apple',     hex:'#D0142A'},
+      {name:'Toffee',          hex:'#9C6B47'},
+      {name:'Petal Pink',      hex:'#F0B8C4'},
+    ]},
+    { brand:'Noir Bloom', shades:[
+      {name:'Deep Plum',       hex:'#451F3B'},
+      {name:'Sienna Red',      hex:'#A0432E'},
+      {name:'Cocoa',           hex:'#5C3A2E'},
+      {name:'Watermelon',      hex:'#E14D5C'},
+      {name:'Mahogany',        hex:'#6E2E28'},
+      {name:'Rose Petal',      hex:'#D68A9A'},
+      {name:'Crimson',         hex:'#A8192E'},
+      {name:'Honey Beige',     hex:'#C9A57E'},
+      {name:'Orchid',          hex:'#B85C9E'},
+    ]},
+    { brand:'Satin Rose Beauty', shades:[
+      {name:'Sangria',         hex:'#6B0F2A'},
+      {name:'Peach Fuzz',      hex:'#E8A87C'},
+      {name:'Bordeaux',        hex:'#4E1620'},
+      {name:'Coral Reef',      hex:'#E86A5C'},
+      {name:'Mauve Taupe',     hex:'#9C7B7E'},
+      {name:'Ruby Wine',       hex:'#7A1F35'},
+      {name:'Sunkissed',       hex:'#D97B5E'},
+      {name:'Blackberry',      hex:'#3E2140'},
+      {name:'Guava Pink',      hex:'#E85C7E'},
+    ]},
+    { brand:'Moonlit Muse', shades:[
+      {name:'Chocolate Rose',  hex:'#6B3D3A'},
+      {name:'Flamingo',        hex:'#E85C8E'},
+      {name:'Deep Cranberry',  hex:'#7A1830'},
+      {name:'Nude Beige',      hex:'#C9927E'},
+      {name:'Vixen Red',       hex:'#B01020'},
+      {name:'Dusty Plum',      hex:'#6B4A5C'},
+      {name:'Papaya',          hex:'#E8734E'},
+      {name:'Rosy Brown',      hex:'#B87A6E'},
+      {name:'Mulberry',        hex:'#5E2340'},
+    ]},
+  ];
+
+  const BASIC_EYE_COLORS = [
+    {name:'Rose Gold',   hex:'#B9797E'},
+    {name:'Champagne',   hex:'#D9C39A'},
+    {name:'Smoky Taupe', hex:'#6B5B54'},
+    {name:'Soft Lilac',  hex:'#A695C8'},
+    {name:'Bronze',      hex:'#8A5A2E'},
+    {name:'Slate Grey',  hex:'#5C6068'},
+  ];
+
+  const PREMIUM_EYE_BRANDS = [
+    { brand:'Lumière Atelier', shades:[
+      {name:'Emerald Flash',   hex:'#1F6E4A'},
+      {name:'Sapphire Smoke',  hex:'#274D7A'},
+      {name:'Amethyst Foil',   hex:'#5B2E7E'},
+      {name:'Onyx Shimmer',    hex:'#1A1A1D'},
+      {name:'Copper Glow',     hex:'#A65B2E'},
+      {name:'Peach Bloom',     hex:'#E3A57E'},
+      {name:'Mauve Mist',      hex:'#9C7A87'},
+      {name:'Espresso',        hex:'#3B2A21'},
+      {name:'Golden Olive',    hex:'#7C7238'},
+    ]},
+    { brand:'Velour & Vine', shades:[
+      {name:'Smoky Charcoal',  hex:'#3A3A3D'},
+      {name:'Icy Silver',      hex:'#B9BEC4'},
+      {name:'Berry Plum',      hex:'#5E2E4E'},
+      {name:'Sunset Terracotta', hex:'#B36A3F'},
+      {name:'Forest Green',    hex:'#2E4A2E'},
+      {name:'Midnight Navy',   hex:'#22304E'},
+      {name:'Rose Taupe',      hex:'#8C6B66'},
+      {name:'Warm Sand',       hex:'#C9A876'},
+      {name:'Deep Merlot',     hex:'#4A1F2E'},
+    ]},
+    { brand:'Golden Hour Cosmetics', shades:[
+      {name:'Olive Gold',      hex:'#6B6B2E'},
+      {name:'Storm Grey',      hex:'#6B6E74'},
+      {name:'Rusty Copper',    hex:'#A05A2E'},
+      {name:'Plum Smoke',      hex:'#5A2E4A'},
+      {name:'Dusty Blue',      hex:'#5E7A8C'},
+      {name:'Champagne Gold',  hex:'#C9A85E'},
+      {name:'Deep Teal',       hex:'#1E4A4A'},
+      {name:'Sable Brown',     hex:'#4A3225'},
+      {name:'Iced Lavender',   hex:'#B8A8C9'},
+    ]},
+    { brand:'Noir Bloom', shades:[
+      {name:'Antique Bronze',  hex:'#7A5A2E'},
+      {name:'Charcoal Grey',   hex:'#3E3E42'},
+      {name:'Rose Bronze',     hex:'#A06B5E'},
+      {name:'Verdant Green',   hex:'#2E5E3A'},
+      {name:'Twilight Purple', hex:'#3A2050'},
+      {name:'Warm Taupe',      hex:'#8C6E5C'},
+      {name:'Steel Blue',      hex:'#3E5C7A'},
+      {name:'Cinnamon Bronze', hex:'#8C5A2E'},
+      {name:'Pearl Grey',      hex:'#C0C4C8'},
+    ]},
+    { brand:'Satin Rose Beauty', shades:[
+      {name:'Deep Amethyst',   hex:'#4A1E5E'},
+      {name:'Golden Sand',     hex:'#C9A26B'},
+      {name:'Slate Blue',      hex:'#4A5A7A'},
+      {name:'Espresso Brown',  hex:'#3A2418'},
+      {name:'Mint Smoke',      hex:'#5E7A6E'},
+      {name:'Rose Quartz',     hex:'#C98C9C'},
+      {name:'Deep Forest',     hex:'#1E3E22'},
+      {name:'Bronzed Peach',   hex:'#C9825E'},
+      {name:'Wine Purple',     hex:'#4E1E3A'},
+    ]},
+    { brand:'Moonlit Muse', shades:[
+      {name:'Frosted Silver',  hex:'#A8ACB0'},
+      {name:'Burnt Sienna',    hex:'#8C4A2E'},
+      {name:'Lilac Mist',      hex:'#A88CB8'},
+      {name:'Deep Navy',       hex:'#1A2440'},
+      {name:'Golden Bronze',   hex:'#A67C3E'},
+      {name:'Smoky Rose',      hex:'#7A5A5E'},
+      {name:'Sage Green',      hex:'#6E7A5E'},
+      {name:'Deep Burgundy Eye', hex:'#4A1E2E'},
+      {name:'Champagne Beige', hex:'#C9B48C'},
+    ]},
   ];
 
   /* ---------------- camera ---------------- */
@@ -950,69 +1026,79 @@
   document.getElementById('resetBtn').addEventListener('click', resetPositions);
 
   /* ---------------- swatches ---------------- */
-  const lipSwatchRow = document.getElementById('lipSwatchRow');
-  const eyeSwatchRow = document.getElementById('eyeSwatchRow');
-  const PAGE_SIZE = 24;
-  const pageState = { lips: 0, eyes: 0 };
+  function clearSelected(groupEl){
+    groupEl.querySelectorAll('.swatch.selected').forEach(s=>s.classList.remove('selected'));
+  }
 
-  function buildSwatches(row, colors, target, redrawFn){
+  // Basic row — always free, never gated by the paywall.
+  function buildBasicRow(groupEl, row, colors, target, redrawFn){
     row.innerHTML = '';
     colors.forEach(c=>{
       const el = document.createElement('div');
       el.className = 'swatch';
       el.style.background = c.hex;
-      if(!c.free && !state.isPremium){
-        el.classList.add('locked');
-        el.innerHTML = '<span class="lockIcon">🔒</span>';
-      }
       el.title = c.name;
       el.addEventListener('click', ()=>{
-        if(!c.free && !state.isPremium){
-          openPremium();
-          return;
-        }
         target.color = c.hex;
         redrawFn();
-        [...row.children].forEach(s=>s.classList.remove('selected'));
+        clearSelected(groupEl);
         el.classList.add('selected');
         showToast(c.name);
       });
       row.appendChild(el);
     });
   }
-  function buildPageTabs(tabsEl, allColors, key, row, target, redrawFn){
-    tabsEl.innerHTML = '';
-    const pageCount = Math.ceil(allColors.length / PAGE_SIZE);
-    if(pageCount <= 1) return;
-    for(let i=0; i<pageCount; i++){
-      const btn = document.createElement('button');
-      btn.textContent = i===0 ? 'Page 1' : `More ${i+1}`;
-      if(pageState[key] === i) btn.classList.add('active');
-      btn.addEventListener('click', ()=>{
-        pageState[key] = i;
-        [...tabsEl.children].forEach(b=>b.classList.remove('active'));
-        btn.classList.add('active');
-        const start = i*PAGE_SIZE, end = start+PAGE_SIZE;
-        buildSwatches(row, allColors.slice(start,end), target, redrawFn);
+
+  // Premium brand library — gated as a whole by Paywall.hasFullAccess(),
+  // grouped visually by brand rather than a flat paginated list.
+  function buildBrandSection(groupEl, container, brands, target, redrawFn){
+    container.innerHTML = '';
+    const unlocked = Paywall.hasFullAccess();
+    brands.forEach(b=>{
+      const rowWrap = document.createElement('div');
+      rowWrap.className = 'brandRow';
+
+      const label = document.createElement('div');
+      label.className = 'brandLabel';
+      label.innerHTML = unlocked ? b.brand : `${b.brand} <span class="lockDot">🔒</span>`;
+
+      const row = document.createElement('div');
+      row.className = 'swatchRow';
+      b.shades.forEach(c=>{
+        const el = document.createElement('div');
+        el.className = 'swatch';
+        el.style.background = c.hex;
+        el.title = `${c.name} — ${b.brand}`;
+        if(!unlocked){
+          el.classList.add('locked');
+          el.innerHTML = '<span class="lockIcon">🔒</span>';
+        }
+        el.addEventListener('click', ()=>{
+          if(!Paywall.hasFullAccess()){
+            openUpgradeScreen();
+            return;
+          }
+          target.color = c.hex;
+          redrawFn();
+          clearSelected(groupEl);
+          el.classList.add('selected');
+          showToast(`${c.name} · ${b.brand}`);
+        });
+        row.appendChild(el);
       });
-      tabsEl.appendChild(btn);
-    }
+
+      rowWrap.appendChild(label);
+      rowWrap.appendChild(row);
+      container.appendChild(rowWrap);
+    });
   }
+
   function refreshSwatches(){
-    const lipStart = pageState.lips*PAGE_SIZE, lipEnd = lipStart+PAGE_SIZE;
-    const eyeStart = pageState.eyes*PAGE_SIZE, eyeEnd = eyeStart+PAGE_SIZE;
-    buildSwatches(lipSwatchRow, LIP_COLORS.slice(lipStart,lipEnd), state.lips, renderLips);
-    buildSwatches(eyeSwatchRow, EYE_COLORS.slice(eyeStart,eyeEnd), state.eyes, renderEyes);
-    buildPageTabs(document.getElementById('lipPageTabs'), LIP_COLORS, 'lips', lipSwatchRow, state.lips, renderLips);
-    buildPageTabs(document.getElementById('eyePageTabs'), EYE_COLORS, 'eyes', eyeSwatchRow, state.eyes, renderEyes);
-    const lipFree = LIP_COLORS.filter(c=>c.free).length;
-    const eyeFree = EYE_COLORS.filter(c=>c.free).length;
-    document.getElementById('lipCountLabel').textContent = state.isPremium
-      ? `· ${LIP_COLORS.length} shades`
-      : `· ${lipFree} free / ${LIP_COLORS.length} total`;
-    document.getElementById('eyeCountLabel').textContent = state.isPremium
-      ? `· ${EYE_COLORS.length} shades`
-      : `· ${eyeFree} free / ${EYE_COLORS.length} total`;
+    buildBasicRow(lipSwatchGroup, document.getElementById('lipBasicRow'), BASIC_LIP_COLORS, state.lips, renderLips);
+    buildBasicRow(eyeSwatchGroup, document.getElementById('eyeBasicRow'), BASIC_EYE_COLORS, state.eyes, renderEyes);
+    buildBrandSection(lipSwatchGroup, document.getElementById('lipBrandSection'), PREMIUM_LIP_BRANDS, state.lips, renderLips);
+    buildBrandSection(eyeSwatchGroup, document.getElementById('eyeBrandSection'), PREMIUM_EYE_BRANDS, state.eyes, renderEyes);
+    updateAccountBadge();
   }
   refreshSwatches();
 
@@ -1026,68 +1112,113 @@
     toastTimer = setTimeout(()=>t.classList.remove('show'), 1100);
   }
 
-  /* ---------------- premium modal ---------------- */
+  /* ---------------- upgrade screen ---------------- */
   const premiumBtn = document.getElementById('premiumBtn');
-  let selectedPlan = 'yearly';
 
-  function openPremium(){
-    if(document.getElementById('premiumModal')) return; // already open, don't stack another
+  function openUpgradeScreen(){
+    if(document.getElementById('upgradeModal')) return; // already open, don't stack another
+    // Reminder framing mid-trial, hard-wall framing once it's actually expired.
+    const headline = Paywall.getStatus() === 'trial'
+      ? 'Your free trial is almost up'
+      : 'Unlock the full glam library';
+
     const wrap = document.createElement('div');
     wrap.className = 'modalWrap';
-    wrap.id = 'premiumModal';
+    wrap.id = 'upgradeModal';
     wrap.innerHTML = `
       <div class="modalCard">
-        <button class="modalClose" id="closePremium">✕</button>
+        <button class="modalClose" id="closeUpgrade">✕</button>
         <div class="modalHandle"></div>
         <div class="goldEyebrow">Instant Glam Premium</div>
-        <h2 class="modalTitle display">Unlock every shade</h2>
-        <p class="modalSub">Get all ${LIP_COLORS.length} lipstick shades and all ${EYE_COLORS.length} eyeshadow shades, saved looks, and no watermark on photos.</p>
-
-        <div class="planRow">
-          <div class="planCard ${selectedPlan==='monthly'?'selected':''}" data-plan="monthly">
-            <div class="planName">Monthly</div>
-            <div class="planPrice">$6.99 <span>/mo</span></div>
-            <div class="planNote">Billed monthly</div>
-          </div>
-          <div class="planCard ${selectedPlan==='yearly'?'selected':''}" data-plan="yearly">
-            <div class="tag">Best value</div>
-            <div class="planName">Yearly</div>
-            <div class="planPrice">$39.99 <span>/yr</span></div>
-            <div class="planNote">Just $3.33/mo</div>
-          </div>
-        </div>
-
-        <ul class="featureList">
-          <li>${LIP_COLORS.length} lipstick shades, ${EYE_COLORS.length} eyeshadow shades</li>
-          <li>Lips and eyes together, fully adjustable</li>
-          <li>Save and share unlimited looks</li>
-          <li>New shades added every month</li>
-        </ul>
-
-        <button class="ctaBtn" id="startTrialBtn">Start 2-day free trial</button>
-        <div class="fineprint">2 days free, then the plan you chose above. Cancel anytime before the trial ends and you won't be charged. By continuing you agree to the Terms and Privacy Policy.</div>
+        <h2 class="modalTitle display">${headline}</h2>
+        <p class="modalSub">You've had a taste of Instant Glam. Get unlimited access to premium shades from the top brands you already use and know well. For less than three dollars a month.</p>
+        <button class="ctaBtn" id="startSubscriptionBtn">Start Subscription — $30/year</button>
+        <div class="fineprint">Cancel anytime.</div>
       </div>
     `;
     document.getElementById('app').appendChild(wrap);
 
-    wrap.querySelector('#closePremium').addEventListener('click', ()=>wrap.remove());
+    wrap.querySelector('#closeUpgrade').addEventListener('click', ()=>wrap.remove());
     wrap.addEventListener('click', (e)=>{ if(e.target===wrap) wrap.remove(); });
-    wrap.querySelectorAll('.planCard').forEach(card=>{
-      card.addEventListener('click', ()=>{
-        selectedPlan = card.dataset.plan;
-        wrap.querySelectorAll('.planCard').forEach(c=>c.classList.remove('selected'));
-        card.classList.add('selected');
-      });
-    });
-    wrap.querySelector('#startTrialBtn').addEventListener('click', ()=>{
-      // Mock activation — wire this to real StoreKit / Stripe billing in production.
-      state.isPremium = true;
+    wrap.querySelector('#startSubscriptionBtn').addEventListener('click', ()=>{
+      // MOCK activation — replace with the real StoreKit / Play Billing
+      // purchase flow; only call Paywall.subscribe() once that confirms.
+      Paywall.subscribe('yearly');
       refreshSwatches();
       wrap.remove();
-      showToast('Trial started — enjoy every shade ✨');
+      showToast('Subscribed — enjoy the full brand library ✨');
     });
   }
-  premiumBtn.addEventListener('click', openPremium);
+
+  /* ---------------- account / settings screen ---------------- */
+  function updateAccountBadge(){
+    const status = Paywall.getStatus();
+    // Queried fresh rather than closing over premiumBtn — refreshSwatches()
+    // (which calls this) runs earlier in the script than premiumBtn's const
+    // declaration below, so closing over it would hit the temporal dead zone.
+    document.getElementById('premiumBtn').textContent = status === 'subscribed' ? '★ Premium'
+      : status === 'trial' ? `Trial · ${Paywall.trialDaysLeft()}d left`
+      : 'Upgrade';
+  }
+
+  function openAccountScreen(){
+    if(document.getElementById('accountModal')) return;
+    const status = Paywall.getStatus();
+    const startStr = Paywall.getTrialStart().toLocaleDateString(undefined, {month:'short', day:'numeric', year:'numeric'});
+    const daysLeft = Paywall.trialDaysLeft();
+
+    let statusLine, subLine;
+    if(status === 'subscribed'){
+      statusLine = 'Premium — Active';
+      subLine = 'You have full access to every basic shade and the entire premium brand library.';
+    } else if(status === 'trial'){
+      statusLine = `Free Trial — ${daysLeft} day${daysLeft===1?'':'s'} left`;
+      subLine = `Your trial started ${startStr} and includes full access to the premium brand library. Basic shades stay free forever either way.`;
+    } else {
+      statusLine = 'Trial Expired';
+      subLine = `Your ${Paywall.TRIAL_DAYS}-day trial started ${startStr}. Basic shades are still free — subscribe to unlock the premium brand library again.`;
+    }
+
+    const wrap = document.createElement('div');
+    wrap.className = 'modalWrap';
+    wrap.id = 'accountModal';
+    wrap.innerHTML = `
+      <div class="modalCard">
+        <button class="modalClose" id="closeAccount">✕</button>
+        <div class="modalHandle"></div>
+        <div class="goldEyebrow">Your Account</div>
+        <h2 class="modalTitle display" style="font-size:24px;">${statusLine}</h2>
+        <p class="modalSub">${subLine}</p>
+        ${status === 'subscribed' ? `
+          <div class="fineprint" style="text-align:left; margin-bottom:16px;">Manage or cancel your subscription from your device's App Store / Play Store account settings.</div>
+        ` : `
+          <button class="ctaBtn" id="accountUpgradeBtn">${status==='trial' ? 'Upgrade now — $30/year' : 'Start Subscription — $30/year'}</button>
+          <div class="fineprint" style="margin-bottom:16px;">Cancel anytime.</div>
+        `}
+        <button class="ctaBtn" id="restorePurchasesBtn" style="background:transparent; border:1px solid var(--line); color:var(--text); box-shadow:none;">Restore Purchases</button>
+      </div>
+    `;
+    document.getElementById('app').appendChild(wrap);
+
+    wrap.querySelector('#closeAccount').addEventListener('click', ()=>wrap.remove());
+    wrap.addEventListener('click', (e)=>{ if(e.target===wrap) wrap.remove(); });
+    const upgradeBtn = wrap.querySelector('#accountUpgradeBtn');
+    if(upgradeBtn){
+      upgradeBtn.addEventListener('click', ()=>{ wrap.remove(); openUpgradeScreen(); });
+    }
+    wrap.querySelector('#restorePurchasesBtn').addEventListener('click', ()=>{
+      // MOCK — replace with the StoreKit / Play Billing restore-purchases call.
+      const restored = Paywall.restorePurchases();
+      wrap.remove();
+      if(restored){
+        refreshSwatches();
+        showToast('Purchases restored ✨');
+      } else {
+        showToast('No previous purchases found');
+      }
+    });
+  }
+  premiumBtn.addEventListener('click', openAccountScreen);
 
   /* ---------------- capture ---------------- */
   const snapCanvas = document.getElementById('snapCanvas');

@@ -333,6 +333,14 @@
   .brandHeader::before, .brandHeader::after{
     content:""; flex:1; height:1px; background:rgba(201,162,39,0.3);
   }
+  /* Always-visible confirmation of what the trial/subscription check found —
+     not just a small badge in the top bar — so the gating state is never
+     ambiguous while looking at the swatches it applies to. */
+  .paywallStatus{
+    text-align:center; font-size:10.5px; font-weight:700;
+    padding:0 16px 8px; color:var(--gold-bright);
+  }
+  .paywallStatus.locked{ color:var(--danger); }
   .brandRow{ margin-bottom:2px; }
   .brandLabel{
     font-size:10.5px; font-weight:700; letter-spacing:0.4px;
@@ -625,12 +633,14 @@
         <div class="groupLabel">Lipstick</div>
         <div class="swatchRow" id="lipBasicRow"></div>
         <div class="brandHeader">Premium Brand Library</div>
+        <div class="paywallStatus" id="lipPaywallStatus"></div>
         <div class="brandSection" id="lipBrandSection"></div>
       </div>
       <div class="swatchGroup hidden" id="eyeSwatchGroup">
         <div class="groupLabel">Eyeshadow</div>
         <div class="swatchRow" id="eyeBasicRow"></div>
         <div class="brandHeader">Premium Brand Library</div>
+        <div class="paywallStatus" id="eyePaywallStatus"></div>
         <div class="brandSection" id="eyeBrandSection"></div>
       </div>
     </div>
@@ -1135,11 +1145,27 @@
     });
   }
 
+  function paywallStatusText(){
+    const status = Paywall.getStatus();
+    if(status === 'subscribed') return { text: '★ Unlocked — Premium active', locked: false };
+    if(status === 'trial'){
+      const d = Paywall.trialDaysLeft();
+      return { text: `🔓 Unlocked — Trial: ${d} day${d===1?'':'s'} left`, locked: false };
+    }
+    return { text: '🔒 Locked — Free trial ended, subscribe to unlock', locked: true };
+  }
+
   function refreshSwatches(){
     buildBasicRow(lipSwatchGroup, document.getElementById('lipBasicRow'), BASIC_LIP_COLORS, state.lips, renderLips);
     buildBasicRow(eyeSwatchGroup, document.getElementById('eyeBasicRow'), BASIC_EYE_COLORS, state.eyes, renderEyes);
     buildBrandSection(lipSwatchGroup, document.getElementById('lipBrandSection'), PREMIUM_LIP_BRANDS, state.lips, renderLips);
     buildBrandSection(eyeSwatchGroup, document.getElementById('eyeBrandSection'), PREMIUM_EYE_BRANDS, state.eyes, renderEyes);
+    const status = paywallStatusText();
+    ['lipPaywallStatus', 'eyePaywallStatus'].forEach(id=>{
+      const el = document.getElementById(id);
+      el.textContent = status.text;
+      el.classList.toggle('locked', status.locked);
+    });
     updateAccountBadge();
   }
   refreshSwatches();
@@ -1468,25 +1494,28 @@ ctx.beginPath();
 
   function finalizeCapture(){
     if(!capturedFaceCanvas) return;
-    
-    // Now composite the face with overlays
+
+    // Composite onto a separate offscreen canvas — NOT the visible snapCanvas —
+    // so the live editing view underneath is untouched. That's what lets
+    // "Continue" (below) just dismiss the preview and drop the person back
+    // into the same editing view they left, instead of a re-baked one.
     const stage = document.getElementById('stage');
     const stageW = stage.clientWidth, stageH = stage.clientHeight;
     const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
     const ratio = (stageW * dpr) / stageW;
-    
-    snapCanvas.width = capturedFaceCanvas.width;
-    snapCanvas.height = capturedFaceCanvas.height;
-    const ctx = snapCanvas.getContext('2d');
+
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = capturedFaceCanvas.width;
+    exportCanvas.height = capturedFaceCanvas.height;
+    const ctx = exportCanvas.getContext('2d');
     ctx.drawImage(capturedFaceCanvas, 0, 0);
-    
-    // Draw overlays
     paintLips(ctx, ratio, stageW, stageH);
     paintEyes(ctx, ratio, stageW, stageH);
-    
-    const dataUrl = snapCanvas.toDataURL('image/png');
+
+    const dataUrl = exportCanvas.toDataURL('image/png');
     showCapture(dataUrl);
-    exitEditMode();
+    // exitEditMode() intentionally NOT called here — see showCapture()'s
+    // Retake/Continue handlers, which decide whether to leave edit mode.
   }
 
   function exitEditMode(){
@@ -1509,6 +1538,34 @@ ctx.beginPath();
     if(retakeBtn) retakeBtn.style.display = 'none';
   }
 
+  // Saves/shares the finished photo. Web Share API (with a real file) is the
+  // only way a mobile web app can reach the native "Save Image" / photo
+  // library sheet — a plain <a download> either gets ignored or just opens
+  // the image in most mobile browsers. Falls back to a direct download for
+  // browsers without file-sharing support (desktop, older Android).
+  async function savePhoto(dataUrl){
+    try{
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const file = new File([blob], 'instant-glam.png', { type: blob.type || 'image/png' });
+      if(navigator.canShare && navigator.canShare({ files: [file] })){
+        await navigator.share({ files: [file], title: 'My Instant Glam look' });
+        showToast('Photo shared ✨');
+        return;
+      }
+    }catch(err){
+      if(err && err.name === 'AbortError') return; // user closed the share sheet
+      // otherwise fall through to the download fallback below
+    }
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = 'instant-glam.png';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    showToast('Photo downloaded ✨');
+  }
+
   function showCapture(dataUrl){
     const view = document.createElement('div');
     view.id = 'captureView';
@@ -1516,17 +1573,23 @@ ctx.beginPath();
       <img src="${dataUrl}" alt="Your Instant Glam selfie">
       <div id="captureActions">
         <button id="retakeBtn">Retake</button>
-        <a class="primary" id="saveBtn" style="text-decoration:none; text-align:center; display:flex; align-items:center; justify-content:center; border-radius:12px;" download="instant-glam.png" href="${dataUrl}">Save Photo</a>
+        <button class="primary" id="saveBtn">Save Photo</button>
         <button id="continueBtn">Continue</button>
       </div>
     `;
     document.getElementById('app').appendChild(view);
-    // Retake discards this look and goes back to the live camera; Continue
-    // does the same dismissal but for someone who's happy with the shot and
-    // just wants to keep using the app (previously there was no such option —
-    // after tapping Save, the screen just sat there with nowhere else to go).
-    view.querySelector('#retakeBtn').addEventListener('click', ()=>view.remove());
-    view.querySelector('#continueBtn').addEventListener('click', ()=>view.remove());
+    // Retake discards this look entirely and goes back to the live camera
+    // for a new selfie. Continue is for someone happy with the shot who just
+    // wants to keep adjusting/using the app — it returns to the same editing
+    // view (position/color controls, swatches) rather than starting over.
+    view.querySelector('#retakeBtn').addEventListener('click', ()=>{
+      view.remove();
+      exitEditMode();
+    });
+    view.querySelector('#continueBtn').addEventListener('click', ()=>{
+      view.remove();
+    });
+    view.querySelector('#saveBtn').addEventListener('click', ()=>savePhoto(dataUrl));
   }
 
   /* ---------------- initial layout ---------------- */

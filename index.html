@@ -360,6 +360,17 @@
     display:flex; align-items:center; justify-content:center;
   }
   .swatch.selected{ border-color:var(--text); box-shadow:0 0 0 2px var(--bg), 0 0 0 4px var(--gold-bright); }
+  /* Marks premium-tier shades so they read as a distinct tier at a glance,
+     independent of whether they happen to be unlocked right now. */
+  .swatch.premium{ border-color:var(--gold); }
+  .swatch .premiumBadge{
+    position:absolute; top:-4px; right:-4px; z-index:2;
+    width:16px; height:16px; border-radius:50%;
+    background:var(--gold-bright); color:#241A0C;
+    border:1.5px solid var(--bg);
+    font-size:9px; line-height:1;
+    display:flex; align-items:center; justify-content:center;
+  }
   .swatch.locked::after{
     content:"";
     position:absolute; inset:0; border-radius:50%;
@@ -1144,12 +1155,18 @@
       row.className = 'swatchRow';
       b.shades.forEach(c=>{
         const el = document.createElement('div');
-        el.className = 'swatch';
+        // .premium marks it as belonging to the paid tier regardless of
+        // current lock state, so basic vs. premium stays visually obvious
+        // even while trial/subscription access has it unlocked — a plain
+        // colored circle looked identical to a free shade otherwise.
+        el.className = 'swatch premium';
         el.style.background = c.hex;
         el.title = `${c.name} — ${b.brand}`;
         if(!unlocked){
           el.classList.add('locked');
           el.innerHTML = '<span class="lockIcon">🔒</span>';
+        } else {
+          el.innerHTML = '<span class="premiumBadge">★</span>';
         }
         el.addEventListener('click', ()=>{
           if(!Paywall.hasFullAccess()){
@@ -1684,16 +1701,22 @@ ctx.beginPath();
       </div>
     `;
     document.getElementById('app').appendChild(view);
-    // Retake discards this look entirely and goes back to the live camera
-    // for a new selfie. Continue is for someone happy with the shot who just
-    // wants to keep adjusting/using the app — it returns to the same editing
-    // view (position/color controls, swatches) rather than starting over.
+    // Retake discards this look and goes straight back to the live camera
+    // for a new selfie. Continue means "I'm finished deciding" — it swaps
+    // the action row down to just a single "Take Another" button, dropping
+    // Retake/Save (their moment has passed) while keeping the finished photo
+    // on screen as a distinct end state, rather than reopening editing.
     view.querySelector('#retakeBtn').addEventListener('click', ()=>{
       view.remove();
       exitEditMode();
     });
     view.querySelector('#continueBtn').addEventListener('click', ()=>{
-      view.remove();
+      const actions = view.querySelector('#captureActions');
+      actions.innerHTML = `<button class="primary" id="takeAnotherBtn">Take Another</button>`;
+      actions.querySelector('#takeAnotherBtn').addEventListener('click', ()=>{
+        view.remove();
+        exitEditMode();
+      });
     });
     view.querySelector('#saveBtn').addEventListener('click', ()=>savePhoto(dataUrl));
   }

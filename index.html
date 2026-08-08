@@ -1339,6 +1339,7 @@
           <div class="fineprint" style="margin-bottom:16px;">Cancel anytime.</div>
         `}
         <button class="ctaBtn" id="restorePurchasesBtn" style="background:transparent; border:1px solid var(--line); color:var(--text); box-shadow:none;">Restore Purchases</button>
+        <button id="resetTestAccountBtn" style="display:block; width:100%; margin-top:14px; background:none; border:none; color:var(--muted); font-size:11.5px; text-decoration:underline; font-family:'Manrope';">Reset trial &amp; subscription (testing)</button>
       </div>
     `;
     document.getElementById('app').appendChild(wrap);
@@ -1359,6 +1360,16 @@
       } else {
         showToast('No previous purchases found');
       }
+    });
+    // Local-storage-only testing affordance, not a real account action — only
+    // reachable by deliberately opening Account, never shown automatically.
+    // Without this there's no way to get out of a stuck "subscribed" test
+    // state (e.g. from tapping Start Subscription while testing) other than
+    // clearing site data through the browser's own settings.
+    wrap.querySelector('#resetTestAccountBtn').addEventListener('click', ()=>{
+      if(!confirm('Reset trial and subscription state for testing? This clears local test data only — nothing real is charged or refunded.')) return;
+      try{ localStorage.clear(); }catch(e){}
+      location.reload();
     });
   }
   premiumBtn.addEventListener('click', openAccountScreen);

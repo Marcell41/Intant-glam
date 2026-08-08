@@ -408,7 +408,7 @@
 
   /* ---------- modal ---------- */
   .modalWrap{
-    position:absolute; inset:0; z-index:50;
+    position:absolute; inset:0; z-index:65;
     background:rgba(6,4,5,0.72);
     display:flex; align-items:flex-end; justify-content:center;
   }
@@ -506,7 +506,8 @@
     font-size:13.5px;
   }
   #captureActions .primary{ background:var(--rose); color:#2B171B; border:none; }
-  #captureActions #continueBtn{
+  #captureActions #continueBtn,
+  #captureActions #doneUpgradeBtn{
     background: linear-gradient(135deg, var(--gold-bright), var(--gold));
     color:#241A0C; border:none;
   }
@@ -1712,11 +1713,24 @@ ctx.beginPath();
     });
     view.querySelector('#continueBtn').addEventListener('click', ()=>{
       const actions = view.querySelector('#captureActions');
-      actions.innerHTML = `<button class="primary" id="takeAnotherBtn">Take Another</button>`;
+      // Right after someone likes their look enough to move past Retake/Save
+      // is the best moment to offer premium — skip the prompt entirely for
+      // anyone already subscribed.
+      const offerUpgrade = !Paywall.isSubscribed();
+      actions.innerHTML =
+        `<button class="primary" id="takeAnotherBtn">Take Another</button>` +
+        (offerUpgrade ? `<button id="doneUpgradeBtn">Upgrade to Premium</button>` : '');
       actions.querySelector('#takeAnotherBtn').addEventListener('click', ()=>{
         view.remove();
         exitEditMode();
       });
+      const upgradeBtn = actions.querySelector('#doneUpgradeBtn');
+      if(upgradeBtn){
+        // Opens on top of this screen (modals sit above #captureView) rather
+        // than dismissing it first, so canceling out of the upgrade screen
+        // leaves the finished photo right where it was.
+        upgradeBtn.addEventListener('click', ()=>openUpgradeScreen());
+      }
     });
     view.querySelector('#saveBtn').addEventListener('click', ()=>savePhoto(dataUrl));
   }

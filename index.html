@@ -432,6 +432,24 @@
     position:absolute; top:18px; right:18px; background:none; border:none;
     color:var(--muted); font-size:22px; line-height:1;
   }
+
+  /* The paywall previously used the same bottom-sheet-sized-to-content card
+     as the other modals, which left the live camera visible above and
+     around it — looked like a half-formed overlay rather than an
+     intentional screen. Makes this one specific modal fill the full
+     viewport and vertically center its content instead. */
+  #upgradeModal .modalCard{
+    height:100dvh; max-height:100dvh;
+    display:flex; flex-direction:column; justify-content:center;
+    padding-top:calc(var(--safe-top) + 24px);
+    border-radius:0; border:none;
+  }
+  #upgradeModal .upgradeHeroImg{
+    display:block; width:100%; height:220px;
+    object-fit:cover; object-position:50% 12%;
+    border-radius:18px;
+    margin:0 0 18px;
+  }
   .goldEyebrow{
     font-size:11.5px; font-weight:800; letter-spacing:2px; text-transform:uppercase;
     color:var(--gold-bright); margin-bottom:8px;
@@ -465,18 +483,6 @@
     border-color:var(--gold); background:linear-gradient(155deg,#2A2118,var(--surface-2) 55%);
   }
   .planToggleBtn.active .planTogglePrice{ color:var(--gold-bright); }
-
-  /* TEMPORARY diagnostic banner — remove once the gating report is resolved.
-     Sits above literally everything (z-index higher than modals/captureView)
-     so it can never be hidden, scrolled past, or missed. */
-  #debugBanner{
-    position:absolute; top:0; left:0; right:0; z-index:999;
-    background:#000; color:#3CFF7A;
-    font-family:'Courier New', monospace; font-size:10px; line-height:1.5;
-    padding:6px 8px; word-break:break-all;
-    border-bottom:2px solid #3CFF7A;
-    max-height:30vh; overflow-y:auto;
-  }
 
   /* preview toast */
   #toast{
@@ -516,8 +522,6 @@
 <body>
 
 <div id="app" class="capturing">
-
-  <div id="debugBanner" class="hidden"></div>
 
   <div class="modalWrap" id="welcomeModal">
     <div class="modalCard">
@@ -759,18 +763,11 @@
     };
   })();
   Paywall.getTrialStart(); // starts the trial clock on first-ever open
-
-  // Debug overlay is opt-in only — visiting with ?debug=1 turns it on and
-  // remembers that choice; ?debug=0 turns it back off. Off by default, so
-  // normal users never see it.
-  const DEBUG_MODE = (function(){
-    try{
-      const params = new URLSearchParams(location.search);
-      if(params.get('debug') === '1'){ localStorage.setItem('ig_debugMode', '1'); return true; }
-      if(params.get('debug') === '0'){ localStorage.removeItem('ig_debugMode'); return false; }
-      return localStorage.getItem('ig_debugMode') === '1';
-    }catch(e){ return false; }
-  })();
+  // One-time cleanup: the diagnostic overlay used earlier to debug gating
+  // has been removed entirely (rather than just hidden), since a leftover
+  // ig_debugMode=1 from ?debug=1 testing would otherwise keep showing it
+  // indefinitely on that device with no way to know it was ever set.
+  try{ localStorage.removeItem('ig_debugMode'); }catch(e){}
 
   // Basic shades — free forever, trial or no trial, subscribed or not.
   const BASIC_LIP_COLORS = [
@@ -1252,7 +1249,7 @@
     wrap.innerHTML = `
       <div class="modalCard">
         <button class="modalClose" id="closeUpgrade">✕</button>
-        <div class="modalHandle"></div>
+        <img class="upgradeHeroImg" src="hero.png" alt="Woman applying red lipstick while looking into a lit vanity mirror">
         <div class="goldEyebrow">Instant Glam Premium</div>
         <h2 class="modalTitle display">${headline}</h2>
         <p class="modalSub">You've had a taste of Instant Glam. Get unlimited access to premium shades from the top brands you already use and know well. For less than three dollars a month.</p>
@@ -1476,85 +1473,6 @@ ctx.beginPath();
     }
   });
 
-  // Diagnostic overlay for the trial/subscription gating check — opt-in only
-  // (see DEBUG_MODE above). Visit the site with ?debug=1 once to turn it on.
-  function updateDebugBanner(){
-    if(!DEBUG_MODE) return;
-    const el = document.getElementById('debugBanner');
-    if(!el) return;
-
-    let storageTest;
-    try{
-      const probe = 'ig_debug_probe_' + Date.now();
-      localStorage.setItem(probe, '1');
-      storageTest = localStorage.getItem(probe) === '1' ? 'OK (persists)' : 'FAIL (read mismatch)';
-      localStorage.removeItem(probe);
-    }catch(e){
-      storageTest = 'FAIL (' + e.message + ') — localStorage blocked, trial cannot persist';
-    }
-
-    const start = Paywall.getTrialStart();
-    const end = Paywall.getTrialEnd();
-    const now = new Date();
-    const status = Paywall.getStatus();
-    const access = Paywall.hasFullAccess();
-    const rawStart = (()=>{ try{ return localStorage.getItem('ig_trialStartDate'); }catch(e){ return '(unreadable)'; } })();
-    const rawSubscribed = (()=>{ try{ return localStorage.getItem('ig_subscriptionActive'); }catch(e){ return '(unreadable)'; } })();
-    const rawPlan = (()=>{ try{ return localStorage.getItem('ig_subscriptionPlan'); }catch(e){ return '(unreadable)'; } })();
-
-    el.innerHTML =
-      `DEBUG — gating check ran at ${now.toLocaleTimeString()}<br>` +
-      `localStorage: ${storageTest}<br>` +
-      `raw ig_trialStartDate: ${rawStart}<br>` +
-      `raw ig_subscriptionActive: ${rawSubscribed}<br>` +
-      `raw ig_subscriptionPlan: ${rawPlan}<br>` +
-      `trial start: ${start.toLocaleString()}<br>` +
-      `trial end: ${end.toLocaleString()}<br>` +
-      `now: ${now.toLocaleString()}<br>` +
-      `Paywall.getStatus(): ${status}<br>` +
-      `Paywall.hasFullAccess(): ${access}<br>` +
-      `→ premium swatches should be: ${access ? 'UNLOCKED' : 'LOCKED'}<br>` +
-      `<button id="debugResetBtn" style="margin-top:6px; padding:6px 10px; background:#3CFF7A; color:#000; border:none; border-radius:4px; font-family:inherit; font-size:10px; font-weight:700;">Clear paywall state &amp; reload</button>`;
-    el.classList.remove('hidden');
-
-    const resetBtn = document.getElementById('debugResetBtn');
-    if(resetBtn){
-      resetBtn.addEventListener('click', ()=>{
-        const before = {
-          trial: localStorage.getItem('ig_trialStartDate'),
-          sub: localStorage.getItem('ig_subscriptionActive'),
-          plan: localStorage.getItem('ig_subscriptionPlan')
-        };
-        // localStorage.clear() rather than three removeItem calls — a full
-        // wipe of this origin's storage, so there's no way a key-name typo
-        // or a key set somewhere else survives it.
-        let clearError = null;
-        try{ localStorage.clear(); }catch(e){ clearError = e.message; }
-        const after = {
-          trial: localStorage.getItem('ig_trialStartDate'),
-          sub: localStorage.getItem('ig_subscriptionActive'),
-          plan: localStorage.getItem('ig_subscriptionPlan')
-        };
-        // Blocking alert — guarantees this is seen and that the click really
-        // fired and really ran, before anything else (including the reload)
-        // can happen.
-        alert(
-          'BEFORE clear:\n' +
-          `  ig_trialStartDate = ${before.trial}\n` +
-          `  ig_subscriptionActive = ${before.sub}\n` +
-          `  ig_subscriptionPlan = ${before.plan}\n\n` +
-          (clearError ? `localStorage.clear() FAILED: ${clearError}\n\n` : 'localStorage.clear() ran.\n\n') +
-          'AFTER clear (should all be null):\n' +
-          `  ig_trialStartDate = ${after.trial}\n` +
-          `  ig_subscriptionActive = ${after.sub}\n` +
-          `  ig_subscriptionPlan = ${after.plan}\n\n` +
-          'Tapping OK will reload the page now.'
-        );
-        location.reload();
-      });
-    }
-  }
-
   function enterEditMode(faceCanvas){
     // Reveal positioning/resizing/color UI now that there's a still photo to place it on
     document.getElementById('app').classList.remove('capturing');
@@ -1563,7 +1481,6 @@ ctx.beginPath();
     // Re-check trial/subscription status right here, at the moment the swatch
     // panel actually becomes usable, instead of relying only on the gating
     // state computed once at page load.
-    updateDebugBanner();
     refreshSwatches();
 
     // Hide camera, show frozen face

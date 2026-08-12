@@ -132,6 +132,30 @@
     position:absolute; inset:0; pointer-events:none; z-index:6;
     background: radial-gradient(120% 85% at 50% 42%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.32) 100%);
   }
+  /* Oblong face guide — only meaningful before a photo exists, so it uses the
+     opposite rule from the rest of the overlay UI: visible while capturing,
+     hidden the moment there's a captured frozen photo to work with instead. */
+  #faceGuide{
+    position:absolute; left:50%; top:45%; transform:translate(-50%,-50%);
+    width:58%; aspect-ratio:3/4;
+    border:3px dashed rgba(228,197,96,0.8);
+    border-radius:50%;
+    pointer-events:none;
+    z-index:7;
+    box-shadow: 0 0 30px rgba(228,197,96,0.12);
+  }
+  #faceGuideHint{
+    position:absolute; left:50%; bottom:6%; transform:translateX(-50%);
+    z-index:7; pointer-events:none;
+    background:rgba(28,20,24,0.62); backdrop-filter:blur(4px);
+    border:1px solid var(--line); border-radius:999px;
+    padding:6px 14px; font-size:11.5px; font-weight:600; color:var(--muted);
+    white-space:nowrap;
+  }
+  #app:not(.capturing) #faceGuide,
+  #app:not(.capturing) #faceGuideHint{
+    display:none !important;
+  }
 
   #dragSurface{
     position:absolute; inset:0; z-index:9;
@@ -450,6 +474,30 @@
     border-radius:18px;
     margin:0 0 18px;
   }
+
+  /* Full-screen, same reasoning as #upgradeModal above — this is a
+     destination page (take it into a store), not a quick popup. */
+  #swatchRefModal .modalCard{
+    min-height:100dvh;
+    display:flex; flex-direction:column; justify-content:center;
+    padding-top:calc(var(--safe-top) + 24px);
+    border-radius:0; border:none;
+  }
+  .refSwatchRow{
+    display:flex; align-items:center; gap:14px;
+    padding:12px 0; border-bottom:1px solid var(--line);
+  }
+  .refSwatchBlock{
+    flex:0 0 auto; width:64px; height:64px; border-radius:14px;
+    border:1px solid rgba(245,237,233,0.25);
+  }
+  .refSwatchLabel{
+    font-size:10.5px; font-weight:800; letter-spacing:1px; text-transform:uppercase;
+    color:var(--gold-bright); margin-bottom:3px;
+  }
+  .refSwatchName{ font-size:15.5px; font-weight:700; color:var(--text); }
+  .refSwatchHex{ font-size:12px; color:var(--muted); margin-top:2px; font-family:'Courier New', monospace; }
+  #swatchRefContinueBtn{ margin-top:20px; }
   .goldEyebrow{
     font-size:11.5px; font-weight:800; letter-spacing:2px; text-transform:uppercase;
     color:var(--gold-bright); margin-bottom:8px;
@@ -512,8 +560,7 @@
     font-size:13.5px;
   }
   #captureActions .primary{ background:var(--rose); color:#2B171B; border:none; }
-  #captureActions #continueBtn,
-  #captureActions #doneUpgradeBtn{
+  #captureActions #continueBtn{
     background: linear-gradient(135deg, var(--gold-bright), var(--gold));
     color:#241A0C; border:none;
   }
@@ -546,6 +593,8 @@
     </div>
 
     <div id="vignette"></div>
+    <div id="faceGuide"></div>
+    <div id="faceGuideHint">Line up your face inside the oval</div>
     <div id="mirrorFrame">
       <svg class="corner tl" viewBox="0 0 64 64"><path d="M6 64 C 6 38, 18 17, 44 9 C 50 7, 57 6, 64 6"/><path class="inner" d="M6 46 C 18 46, 24 39, 24 26"/><path class="inner" d="M14 64 C 14 50, 22 44, 34 44"/><circle cx="24" cy="20" r="2.6"/><circle cx="10" cy="52" r="1.6"/></svg>
       <svg class="corner tr" viewBox="0 0 64 64"><path d="M6 64 C 6 38, 18 17, 44 9 C 50 7, 57 6, 64 6"/><path class="inner" d="M6 46 C 18 46, 24 39, 24 26"/><path class="inner" d="M14 64 C 14 50, 22 44, 34 44"/><circle cx="24" cy="20" r="2.6"/><circle cx="10" cy="52" r="1.6"/></svg>
@@ -577,30 +626,19 @@
     </div>
 
     <!-- Eye overlay (both lids move as pair). Two shapes per side: S1 is the
-         main lid tone, S2 is the narrower inner-corner tone. eyeRight is the
-         canonical (unmirrored) orientation; eyeLeft mirrors it via scale(-1,1)
-         so the two sides are true opposites rather than identical copies. -->
+         main lid tone, S2 is the narrower inner-corner tone — each 3x the
+         prior size, flat-filled (no fade). eyeRight is the canonical
+         (unmirrored) orientation; eyeLeft mirrors it via scale(-1,1) so the
+         two sides are true opposites rather than identical copies. -->
     <div class="overlay-layer" id="eyesLayer">
       <svg id="eyesSvg" width="320" height="90" viewBox="-160 -45 320 90">
-        <defs>
-          <linearGradient id="s1FadeGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-opacity="0"/>
-            <stop offset="50%" stop-opacity="1"/>
-            <stop offset="100%" stop-opacity="1"/>
-          </linearGradient>
-          <linearGradient id="s2FadeGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-opacity="0"/>
-            <stop offset="50%" stop-opacity="1"/>
-            <stop offset="100%" stop-opacity="1"/>
-          </linearGradient>
-        </defs>
         <g id="eyeRight">
-          <path class="eyeS1" d="M-27 22.5 C -18 6, -1 4, 13 8 C 24 12, 27 19, 23 22.5 C 9 18, -13 17, -27 22.5 Z" fill="url(#s1FadeGrad)"/>
-          <path class="eyeS2" d="M19 21 C 12 8, -2 3, -10 6 C -14 8, -17 9, -19 11 C -13 15, 2 19, 19 21 Z" fill="url(#s2FadeGrad)"/>
+          <path class="eyeS1" d="M-81 67.5 C -54 18, -3 12, 39 24 C 72 36, 81 57, 69 67.5 C 27 54, -39 51, -81 67.5 Z" fill="#B79AE0"/>
+          <path class="eyeS2" d="M57 63 C 36 24, -6 9, -30 18 C -42 24, -51 27, -57 33 C -39 45, 6 57, 57 63 Z" fill="#E8C874"/>
         </g>
         <g id="eyeLeft">
-          <path class="eyeS1" d="M-27 22.5 C -18 6, -1 4, 13 8 C 24 12, 27 19, 23 22.5 C 9 18, -13 17, -27 22.5 Z" fill="url(#s1FadeGrad)"/>
-          <path class="eyeS2" d="M19 21 C 12 8, -2 3, -10 6 C -14 8, -17 9, -19 11 C -13 15, 2 19, 19 21 Z" fill="url(#s2FadeGrad)"/>
+          <path class="eyeS1" d="M-81 67.5 C -54 18, -3 12, 39 24 C 72 36, 81 57, 69 67.5 C 27 54, -39 51, -81 67.5 Z" fill="#B79AE0"/>
+          <path class="eyeS2" d="M57 63 C 36 24, -6 9, -30 18 C -42 24, -51 27, -57 33 C -39 45, 6 57, 57 63 Z" fill="#E8C874"/>
         </g>
       </svg>
     </div>
@@ -712,7 +750,7 @@
   const state = {
     mode: 'lips',                // lips | eyes | both
     lips: { x:0, y:0, scale:0.448, color:'#C0435A', visible:true },
-    eyes: { x:0, y:-40, scale:0.8, spread:1, colorS1:'#8A6FB3', colorS2:'#D9C39A', visible:false },
+    eyes: { x:0, y:-40, scale:0.8, spread:1, colorS1:'#B79AE0', colorS2:'#E8C874', visible:false },
     facing: 'user'
   };
 
@@ -870,81 +908,85 @@
     ]},
   ];
 
+  // Replaces the old muted/earthy set — deliberately spread across the hue
+  // wheel (pink, gold, purple, teal, green, blue) at moderate-to-high
+  // saturation/lightness so shades stay visually distinct at a glance,
+  // rather than several dark, similar-looking browns and greys.
   const BASIC_EYE_COLORS = [
-    {name:'Rose Gold',   hex:'#B9797E'},
-    {name:'Champagne',   hex:'#D9C39A'},
-    {name:'Smoky Taupe', hex:'#6B5B54'},
-    {name:'Soft Lilac',  hex:'#A695C8'},
-    {name:'Bronze',      hex:'#8A5A2E'},
-    {name:'Slate Grey',  hex:'#5C6068'},
+    {name:'Rose Pink',        hex:'#E0899F'},
+    {name:'Golden Champagne', hex:'#E8C874'},
+    {name:'Lilac Dream',      hex:'#B79AE0'},
+    {name:'Ocean Teal',       hex:'#3FB8B0'},
+    {name:'Emerald Green',    hex:'#4CAF6E'},
+    {name:'Copper Bronze',    hex:'#CC7A3D'},
   ];
 
   const PREMIUM_EYE_BRANDS = [
     { brand:'Lumière Atelier', shades:[
-      {name:'Emerald Flash',   hex:'#1F6E4A'},
-      {name:'Sapphire Smoke',  hex:'#274D7A'},
-      {name:'Amethyst Foil',   hex:'#5B2E7E'},
-      {name:'Onyx Shimmer',    hex:'#1A1A1D'},
-      {name:'Copper Glow',     hex:'#A65B2E'},
-      {name:'Peach Bloom',     hex:'#E3A57E'},
-      {name:'Mauve Mist',      hex:'#9C7A87'},
-      {name:'Espresso',        hex:'#3B2A21'},
-      {name:'Golden Olive',    hex:'#7C7238'},
+      {name:'Emerald Jewel',   hex:'#1FA463'},
+      {name:'Sapphire Blue',   hex:'#2E6FE0'},
+      {name:'Amethyst Purple', hex:'#8B4FD1'},
+      {name:'Ruby Red',        hex:'#E0304F'},
+      {name:'Citrine Gold',    hex:'#E0B31F'},
+      {name:'Turquoise Pop',   hex:'#1FC4C4'},
+      {name:'Magenta Flash',   hex:'#D6249B'},
+      {name:'Garnet Bright',   hex:'#C4264B'},
+      {name:'Topaz Amber',     hex:'#E09A2E'},
     ]},
     { brand:'Velour & Vine', shades:[
-      {name:'Smoky Charcoal',  hex:'#3A3A3D'},
-      {name:'Icy Silver',      hex:'#B9BEC4'},
-      {name:'Berry Plum',      hex:'#5E2E4E'},
-      {name:'Sunset Terracotta', hex:'#B36A3F'},
-      {name:'Forest Green',    hex:'#2E4A2E'},
-      {name:'Midnight Navy',   hex:'#22304E'},
-      {name:'Rose Taupe',      hex:'#8C6B66'},
-      {name:'Warm Sand',       hex:'#C9A876'},
-      {name:'Deep Merlot',     hex:'#4A1F2E'},
+      {name:'Soft Coral',      hex:'#F0958A'},
+      {name:'Fresh Mint',      hex:'#7EDBB8'},
+      {name:'Periwinkle Blue', hex:'#8FA3E8'},
+      {name:'Buttercup Yellow', hex:'#F0D467'},
+      {name:'Blush Pink',      hex:'#F0AEC4'},
+      {name:'Sky Blue',        hex:'#7FC4EE'},
+      {name:'Peach Cream',     hex:'#F4B98A'},
+      {name:'Soft Lilac Bloom', hex:'#C9A8EA'},
+      {name:'Seafoam Green',   hex:'#7ED4C4'},
     ]},
     { brand:'Golden Hour Cosmetics', shades:[
-      {name:'Olive Gold',      hex:'#6B6B2E'},
-      {name:'Storm Grey',      hex:'#6B6E74'},
-      {name:'Rusty Copper',    hex:'#A05A2E'},
-      {name:'Plum Smoke',      hex:'#5A2E4A'},
-      {name:'Dusty Blue',      hex:'#5E7A8C'},
-      {name:'Champagne Gold',  hex:'#C9A85E'},
-      {name:'Deep Teal',       hex:'#1E4A4A'},
-      {name:'Sable Brown',     hex:'#4A3225'},
-      {name:'Iced Lavender',   hex:'#B8A8C9'},
+      {name:'Tangerine Pop',   hex:'#F08A3C'},
+      {name:'Coral Sunset',    hex:'#F26B5E'},
+      {name:'Amber Glow',      hex:'#E8A62E'},
+      {name:'Rose Gold Shine', hex:'#E0A088'},
+      {name:'Terracotta Bright', hex:'#E06B44'},
+      {name:'Peach Fizz',      hex:'#F4A87E'},
+      {name:'Warm Pink Blush', hex:'#E88AA0'},
+      {name:'Honey Gold',      hex:'#E8B94E'},
+      {name:'Apricot Cream',   hex:'#F0AD7A'},
     ]},
     { brand:'Noir Bloom', shades:[
-      {name:'Antique Bronze',  hex:'#7A5A2E'},
-      {name:'Charcoal Grey',   hex:'#3E3E42'},
-      {name:'Rose Bronze',     hex:'#A06B5E'},
-      {name:'Verdant Green',   hex:'#2E5E3A'},
-      {name:'Twilight Purple', hex:'#3A2050'},
-      {name:'Warm Taupe',      hex:'#8C6E5C'},
-      {name:'Steel Blue',      hex:'#3E5C7A'},
-      {name:'Cinnamon Bronze', hex:'#8C5A2E'},
-      {name:'Pearl Grey',      hex:'#C0C4C8'},
+      {name:'Fuchsia Burst',   hex:'#D6248E'},
+      {name:'Electric Violet', hex:'#7B3FE0'},
+      {name:'Crimson Flame',   hex:'#E0243F'},
+      {name:'Indigo Night',    hex:'#4433C4'},
+      {name:'Orchid Purple',   hex:'#B84FC4'},
+      {name:'Wine Berry',      hex:'#B8244E'},
+      {name:'Plum Vivid',      hex:'#9C3FA0'},
+      {name:'Berry Punch',     hex:'#C4244E'},
+      {name:'Magenta Deep',    hex:'#A81E7A'},
     ]},
     { brand:'Satin Rose Beauty', shades:[
-      {name:'Deep Amethyst',   hex:'#4A1E5E'},
-      {name:'Golden Sand',     hex:'#C9A26B'},
-      {name:'Slate Blue',      hex:'#4A5A7A'},
-      {name:'Espresso Brown',  hex:'#3A2418'},
-      {name:'Mint Smoke',      hex:'#5E7A6E'},
-      {name:'Rose Quartz',     hex:'#C98C9C'},
-      {name:'Deep Forest',     hex:'#1E3E22'},
-      {name:'Bronzed Peach',   hex:'#C9825E'},
-      {name:'Wine Purple',     hex:'#4E1E3A'},
+      {name:'Hot Pink',        hex:'#E0247E'},
+      {name:'Dusty Rose Bright', hex:'#D68599'},
+      {name:'Salmon Pink',     hex:'#F08A7E'},
+      {name:'Raspberry Pop',   hex:'#D6244F'},
+      {name:'Blush Rose',      hex:'#F0B4C4'},
+      {name:'Watermelon Red',  hex:'#E0455E'},
+      {name:'Coral Pink',      hex:'#F08A9C'},
+      {name:'Mauve Vivid',     hex:'#C46B94'},
+      {name:'Rose Red',        hex:'#D6244A'},
     ]},
     { brand:'Moonlit Muse', shades:[
-      {name:'Frosted Silver',  hex:'#A8ACB0'},
-      {name:'Burnt Sienna',    hex:'#8C4A2E'},
-      {name:'Lilac Mist',      hex:'#A88CB8'},
-      {name:'Deep Navy',       hex:'#1A2440'},
-      {name:'Golden Bronze',   hex:'#A67C3E'},
-      {name:'Smoky Rose',      hex:'#7A5A5E'},
-      {name:'Sage Green',      hex:'#6E7A5E'},
-      {name:'Deep Burgundy Eye', hex:'#4A1E2E'},
-      {name:'Champagne Beige', hex:'#C9B48C'},
+      {name:'Cobalt Blue',     hex:'#2E4FC4'},
+      {name:'Teal Twilight',   hex:'#1F8A9C'},
+      {name:'Mint Green Cool', hex:'#6BD4A8'},
+      {name:'Lavender Cool',   hex:'#A88AE0'},
+      {name:'Silver Blue',     hex:'#7EA8D6'},
+      {name:'Aqua Splash',     hex:'#3FC4D6'},
+      {name:'Periwinkle Cool', hex:'#8A9CE0'},
+      {name:'Icy Purple',      hex:'#A87EC4'},
+      {name:'Seafoam Cool',    hex:'#6BC4A8'},
     ]},
   ];
 
@@ -1016,11 +1058,10 @@
 
     const showS1 = (state.mode === 'eyes' || state.mode === 'all');
     const showS2 = (state.mode === 'base' || state.mode === 'all');
-    document.querySelectorAll('.eyeS1').forEach(p=>{ p.style.opacity = showS1 ? '1' : '0'; });
-    document.querySelectorAll('.eyeS2').forEach(p=>{ p.style.opacity = showS2 ? '1' : '0'; });
-
-    document.querySelectorAll('#s1FadeGrad stop').forEach(s=>s.setAttribute('stop-color', state.eyes.colorS1));
-    document.querySelectorAll('#s2FadeGrad stop').forEach(s=>s.setAttribute('stop-color', state.eyes.colorS2));
+    // Flat fill, no fade — opacity is either "shown" (0.78) or "hidden" (0),
+    // never anything in between.
+    document.querySelectorAll('.eyeS1').forEach(p=>{ p.style.opacity = showS1 ? '0.78' : '0'; p.setAttribute('fill', state.eyes.colorS1); });
+    document.querySelectorAll('.eyeS2').forEach(p=>{ p.style.opacity = showS2 ? '0.78' : '0'; p.setAttribute('fill', state.eyes.colorS2); });
   }
 
   /* Single drag surface covers the whole camera view — moves whichever overlay(s)
@@ -1448,42 +1489,29 @@ ctx.beginPath();
   ctx.bezierCurveTo(90,54, 60,52, 34,49);
   ctx.closePath(); 
 } function traceEyeLidS1(ctx){
-    // Matches #eyeS1's path exactly — 50% the size of the original single
-    // eyeshadow shape, centered on local x=0 so mirroring via scale(-1,1)
-    // works without any extra offset.
+    // Matches #eyeRight/#eyeLeft's .eyeS1 path exactly — centered on local
+    // x=0 so mirroring via scale(-1,1) works without any extra offset.
     ctx.beginPath();
-    ctx.moveTo(-27,22.5);
-    ctx.bezierCurveTo(-18,6, -1,4, 13,8);
-    ctx.bezierCurveTo(24,12, 27,19, 23,22.5);
-    ctx.bezierCurveTo(9,18, -13,17, -27,22.5);
+    ctx.moveTo(-81,67.5);
+    ctx.bezierCurveTo(-54,18, -3,12, 39,24);
+    ctx.bezierCurveTo(72,36, 81,57, 69,67.5);
+    ctx.bezierCurveTo(27,54, -39,51, -81,67.5);
     ctx.closePath();
   }
   function traceEyeLidS2(ctx){
-    // Matches #eyeS2's path exactly — narrower than S1; its inner edge
-    // (negative x, toward the nose) sweeps up to y=11 vs. the outer
-    // corner's y=21, instead of closing flat along the same baseline.
+    // Matches .eyeS2's path exactly — narrower than S1; its inner edge
+    // (negative x, toward the nose) sweeps up well above the outer corner's
+    // baseline instead of closing flat along the same line.
     ctx.beginPath();
-    ctx.moveTo(19,21);
-    ctx.bezierCurveTo(12,8, -2,3, -10,6);
-    ctx.bezierCurveTo(-14,8, -17,9, -19,11);
-    ctx.bezierCurveTo(-13,15, 2,19, 19,21);
+    ctx.moveTo(57,63);
+    ctx.bezierCurveTo(36,24, -6,9, -30,18);
+    ctx.bezierCurveTo(-42,24, -51,27, -57,33);
+    ctx.bezierCurveTo(-39,45, 6,57, 57,63);
     ctx.closePath();
   }
-  // Bounding-box Y range of each shape above, in its own local coordinates —
-  // used to build a gradient that fades from transparent at the shape's own
-  // top down to fully opaque at its own vertical middle.
-  const EYE_S1_BOUNDS = { minY: 4, maxY: 22.5 };
-  const EYE_S2_BOUNDS = { minY: 3, maxY: 21 };
-  function hexToRgb(hex){
-    return { r: parseInt(hex.slice(1,3),16), g: parseInt(hex.slice(3,5),16), b: parseInt(hex.slice(5,7),16) };
-  }
-  function fillEyeShapeWithFade(ctx, traceFn, bounds, hex){
-    const { r, g, b } = hexToRgb(hex);
-    const midY = (bounds.minY + bounds.maxY) / 2;
-    const grad = ctx.createLinearGradient(0, bounds.minY, 0, midY);
-    grad.addColorStop(0, `rgba(${r},${g},${b},0)`);
-    grad.addColorStop(1, `rgba(${r},${g},${b},1)`);
-    ctx.fillStyle = grad;
+  function fillEyeShape(ctx, traceFn, hex){
+    ctx.fillStyle = hex;
+    ctx.globalAlpha = 0.78;
     traceFn(ctx);
     ctx.fill();
   }
@@ -1517,8 +1545,8 @@ ctx.beginPath();
     // Right eye — canonical orientation
     ctx.save();
     ctx.translate(spreadPx, 0);
-    if(showS1) fillEyeShapeWithFade(ctx, traceEyeLidS1, EYE_S1_BOUNDS, state.eyes.colorS1);
-    if(showS2) fillEyeShapeWithFade(ctx, traceEyeLidS2, EYE_S2_BOUNDS, state.eyes.colorS2);
+    if(showS1) fillEyeShape(ctx, traceEyeLidS1, state.eyes.colorS1);
+    if(showS2) fillEyeShape(ctx, traceEyeLidS2, state.eyes.colorS2);
     ctx.restore();
 
     // Left eye — mirrored, so it's a true opposite of the right rather than
@@ -1526,8 +1554,8 @@ ctx.beginPath();
     ctx.save();
     ctx.translate(-spreadPx, 0);
     ctx.scale(-1, 1);
-    if(showS1) fillEyeShapeWithFade(ctx, traceEyeLidS1, EYE_S1_BOUNDS, state.eyes.colorS1);
-    if(showS2) fillEyeShapeWithFade(ctx, traceEyeLidS2, EYE_S2_BOUNDS, state.eyes.colorS2);
+    if(showS1) fillEyeShape(ctx, traceEyeLidS1, state.eyes.colorS1);
+    if(showS2) fillEyeShape(ctx, traceEyeLidS2, state.eyes.colorS2);
     ctx.restore();
 
     ctx.restore();
@@ -1726,36 +1754,78 @@ ctx.beginPath();
     `;
     document.getElementById('app').appendChild(view);
     // Retake discards this look and goes straight back to the live camera
-    // for a new selfie. Continue means "I'm finished deciding" — it swaps
-    // the action row down to just a single "Take Another" button, dropping
-    // Retake/Save (their moment has passed) while keeping the finished photo
-    // on screen as a distinct end state, rather than reopening editing.
+    // for a new selfie. Continue means "I'm finished deciding" — it moves
+    // forward into the color-reference page (then on to the subscription
+    // prompt) rather than looping back to any camera/editing screen.
     view.querySelector('#retakeBtn').addEventListener('click', ()=>{
       view.remove();
       exitEditMode();
     });
     view.querySelector('#continueBtn').addEventListener('click', ()=>{
-      const actions = view.querySelector('#captureActions');
-      // Right after someone likes their look enough to move past Retake/Save
-      // is the best moment to offer premium — skip the prompt entirely for
-      // anyone already subscribed.
-      const offerUpgrade = !Paywall.isSubscribed();
-      actions.innerHTML =
-        `<button class="primary" id="takeAnotherBtn">Take Another</button>` +
-        (offerUpgrade ? `<button id="doneUpgradeBtn">Upgrade to Premium</button>` : '');
-      actions.querySelector('#takeAnotherBtn').addEventListener('click', ()=>{
-        view.remove();
-        exitEditMode();
-      });
-      const upgradeBtn = actions.querySelector('#doneUpgradeBtn');
-      if(upgradeBtn){
-        // Opens on top of this screen (modals sit above #captureView) rather
-        // than dismissing it first, so canceling out of the upgrade screen
-        // leaves the finished photo right where it was.
-        upgradeBtn.addEventListener('click', ()=>openUpgradeScreen());
-      }
+      view.remove();
+      exitEditMode();
+      openSwatchReference();
     });
     view.querySelector('#saveBtn').addEventListener('click', ()=>savePhoto(dataUrl));
+  }
+
+  // Finds the name/brand for a chosen hex so the reference page can label it,
+  // not just show the raw swatch.
+  function findColorMeta(hex, basicList, brandList){
+    const basic = basicList.find(c=>c.hex===hex);
+    if(basic) return { name: basic.name, brand: null };
+    for(const b of brandList){
+      const shade = b.shades.find(c=>c.hex===hex);
+      if(shade) return { name: shade.name, brand: b.brand };
+    }
+    return { name: 'Custom Mix', brand: null };
+  }
+
+  // Full-page reference of exactly the 3 colors chosen (lips, eyeshadow lid,
+  // eyeshadow inner corner) — meant to be taken into a store and matched
+  // against shelf products, so it's just large, legible color blocks with
+  // names/hex codes, not a promotional screen. Leads into the subscription
+  // prompt on Continue (task 5).
+  function openSwatchReference(){
+    if(document.getElementById('swatchRefModal')) return;
+
+    const lipMeta = findColorMeta(state.lips.color, BASIC_LIP_COLORS, PREMIUM_LIP_BRANDS);
+    const s1Meta = findColorMeta(state.eyes.colorS1, BASIC_EYE_COLORS, PREMIUM_EYE_BRANDS);
+    const s2Meta = findColorMeta(state.eyes.colorS2, BASIC_EYE_COLORS, PREMIUM_EYE_BRANDS);
+
+    const swatchRow = (label, hex, meta) => `
+      <div class="refSwatchRow">
+        <div class="refSwatchBlock" style="background:${hex};"></div>
+        <div class="refSwatchInfo">
+          <div class="refSwatchLabel">${label}</div>
+          <div class="refSwatchName">${meta.name}${meta.brand ? ' · ' + meta.brand : ''}</div>
+          <div class="refSwatchHex">${hex.toUpperCase()}</div>
+        </div>
+      </div>`;
+
+    const wrap = document.createElement('div');
+    wrap.className = 'modalWrap';
+    wrap.id = 'swatchRefModal';
+    wrap.innerHTML = `
+      <div class="modalCard">
+        <button class="modalClose" id="closeSwatchRef">✕</button>
+        <div class="goldEyebrow">Your Instant Glam Look</div>
+        <h2 class="modalTitle display">Color Reference</h2>
+        <p class="modalSub">Take this page with you and match it against shelf products in store.</p>
+        ${swatchRow('Lips', state.lips.color, lipMeta)}
+        ${swatchRow('Eyeshadow — Lid', state.eyes.colorS1, s1Meta)}
+        ${swatchRow('Eyeshadow — Inner Corner', state.eyes.colorS2, s2Meta)}
+        <button class="ctaBtn" id="swatchRefContinueBtn">Continue</button>
+      </div>
+    `;
+    document.getElementById('app').appendChild(wrap);
+
+    wrap.querySelector('#closeSwatchRef').addEventListener('click', ()=>wrap.remove());
+    wrap.addEventListener('click', (e)=>{ if(e.target===wrap) wrap.remove(); });
+    wrap.querySelector('#swatchRefContinueBtn').addEventListener('click', ()=>{
+      wrap.remove();
+      openUpgradeScreen();
+    });
   }
 
   /* ---------------- initial layout ---------------- */

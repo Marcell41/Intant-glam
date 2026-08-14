@@ -288,6 +288,8 @@
     font-family:'Manrope'; font-weight:700; font-size:10.5px;
     padding:5px 9px; border-radius:999px; letter-spacing:0.2px;
   }
+  /* Width reduced ~30% from the other tabs, per explicit request. */
+  .modeTab[data-mode="eyes"]{ padding-left:2.6px; padding-right:2.6px; }
   .modeTab.active{ background:var(--rose); color:#2B171B; }
 
   /* ---------- side size controls ---------- */
@@ -303,6 +305,16 @@
     border:1px solid var(--line);
     border-radius:14px;
     overflow:hidden;
+  }
+  /* Redeclared (not just inherited from the global `button` rule) plus
+     touch-action:none instead of manipulation — these are tap-only controls
+     with nothing to scroll, so fully opting them out of default touch
+     handling is safe and is the more aggressive fix for the recurring
+     double-tap-triggers-copy/paste-selection report. */
+  .sizeControls button, .eyeExtra button{
+    -webkit-user-select:none; user-select:none;
+    -webkit-touch-callout:none; -webkit-user-drag:none;
+    touch-action:none;
   }
   .sizeControls button{
     width:34px; height:34px;
@@ -634,11 +646,11 @@
       <svg id="eyesSvg" width="320" height="90" viewBox="-160 -45 320 90">
         <g id="eyeRight">
           <path class="eyeS1" d="M-81 67.5 C -54 18, -3 12, 39 24 C 72 36, 81 57, 69 67.5 C 27 54, -39 51, -81 67.5 Z" fill="#B79AE0"/>
-          <path class="eyeS2" d="M57 63 C 36 24, -6 9, -30 18 C -42 24, -51 27, -57 33 C -39 45, 6 57, 57 63 Z" fill="#E8C874"/>
+          <g id="s2RightGroup"><path class="eyeS2" id="s2RightPath" d="M57 63 C 36 24, -6 9, -30 18 C -42 24, -51 27, -57 33 C -39 45, 6 57, 57 63 Z" fill="#E8C874"/></g>
         </g>
         <g id="eyeLeft">
           <path class="eyeS1" d="M-81 67.5 C -54 18, -3 12, 39 24 C 72 36, 81 57, 69 67.5 C 27 54, -39 51, -81 67.5 Z" fill="#B79AE0"/>
-          <path class="eyeS2" d="M57 63 C 36 24, -6 9, -30 18 C -42 24, -51 27, -57 33 C -39 45, 6 57, 57 63 Z" fill="#E8C874"/>
+          <g id="s2LeftGroup"><path class="eyeS2" id="s2LeftPath" d="M57 63 C 36 24, -6 9, -30 18 C -42 24, -51 27, -57 33 C -39 45, 6 57, 57 63 Z" fill="#E8C874"/></g>
         </g>
       </svg>
     </div>
@@ -750,7 +762,14 @@
   const state = {
     mode: 'lips',                // lips | eyes | both
     lips: { x:0, y:0, scale:0.448, color:'#C0435A', visible:true },
-    eyes: { x:0, y:-40, scale:0.8, spread:1, colorS1:'#B79AE0', colorS2:'#E8C874', visible:false },
+    eyes: {
+      x:0, y:-40, scale:0.6, spread:1, colorS1:'#B79AE0', colorS2:'#E8C874', visible:false,
+      // Independent per-side offset/rotation for the Base (S2) shape, on top
+      // of the shared x/y/scale/spread above — each side can be dragged and
+      // spun on its own instead of only moving as a mirrored pair.
+      s2Left:  { x:0, y:0, rot:0 },
+      s2Right: { x:0, y:0, rot:0 },
+    },
     facing: 'user'
   };
 
@@ -1062,6 +1081,19 @@
     // never anything in between.
     document.querySelectorAll('.eyeS1').forEach(p=>{ p.style.opacity = showS1 ? '0.78' : '0'; p.setAttribute('fill', state.eyes.colorS1); });
     document.querySelectorAll('.eyeS2').forEach(p=>{ p.style.opacity = showS2 ? '0.78' : '0'; p.setAttribute('fill', state.eyes.colorS2); });
+
+    // Each S2 shape gets its own offset+rotation on top of the shared
+    // eyeLeft/eyeRight positioning, so it can be dragged and spun
+    // independently. Only interactive (pointer-events) while actually
+    // visible, so a hidden shape in Eyes/Lips/All-without-base... wait, S2
+    // shows in Base and All, so this just tracks showS2 directly.
+    const s2Left = state.eyes.s2Left, s2Right = state.eyes.s2Right;
+    document.getElementById('s2RightGroup').setAttribute('transform', `translate(${s2Right.x},${s2Right.y}) rotate(${s2Right.rot})`);
+    document.getElementById('s2LeftGroup').setAttribute('transform', `translate(${s2Left.x},${s2Left.y}) rotate(${s2Left.rot})`);
+    const s2RightPath = document.getElementById('s2RightPath');
+    const s2LeftPath = document.getElementById('s2LeftPath');
+    s2RightPath.style.pointerEvents = showS2 ? 'auto' : 'none';
+    s2LeftPath.style.pointerEvents = showS2 ? 'auto' : 'none';
   }
 
   /* Single drag surface covers the whole camera view — moves whichever overlay(s)
@@ -1109,6 +1141,49 @@
     window.addEventListener('touchmove', move, {passive:false});
     window.addEventListener('touchend', up);
   })();
+
+  // Each Base (S2) shape is independently draggable — touching directly on
+  // it (rather than elsewhere on the shared drag surface) moves just that
+  // one shape. Vertical drag distance also spins it, continuously, so a
+  // ~300px vertical drag is a full 360° rotation. mirrorSign flips the
+  // horizontal/rotation direction for the left shape, which renders inside
+  // #eyeLeft's scale(-1,1) — without that flip, dragging left would move it
+  // right, and a rotation gesture would visually spin backwards.
+  function setupS2Drag(pathEl, target, mirrorSign){
+    const ROT_PER_PX = 360 / 300;
+    let dragging = false, startX = 0, startY = 0, baseX = 0, baseY = 0, baseRot = 0;
+    function pointFrom(e){
+      if(e.touches && e.touches[0]) return {x:e.touches[0].clientX, y:e.touches[0].clientY};
+      return {x:e.clientX, y:e.clientY};
+    }
+    function down(e){
+      dragging = true;
+      const p = pointFrom(e);
+      startX = p.x; startY = p.y;
+      baseX = target.x; baseY = target.y; baseRot = target.rot;
+      e.preventDefault();
+    }
+    function move(e){
+      if(!dragging) return;
+      const p = pointFrom(e);
+      const dx = p.x - startX, dy = p.y - startY;
+      const s = state.eyes.scale || 1;
+      target.x = baseX + (mirrorSign * dx) / s;
+      target.y = baseY + dy / s;
+      target.rot = baseRot + (mirrorSign * dy) * ROT_PER_PX;
+      renderAll();
+      e.preventDefault();
+    }
+    function up(){ dragging = false; }
+    pathEl.addEventListener('mousedown', down);
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    pathEl.addEventListener('touchstart', down, {passive:false});
+    window.addEventListener('touchmove', move, {passive:false});
+    window.addEventListener('touchend', up);
+  }
+  setupS2Drag(document.getElementById('s2RightPath'), state.eyes.s2Right, 1);
+  setupS2Drag(document.getElementById('s2LeftPath'), state.eyes.s2Left, -1);
 
   function renderAll(){ renderLips(); renderEyes(); }
 
@@ -1170,9 +1245,25 @@
   document.getElementById('lipSizeUp').addEventListener('click', ()=>{ state.lips.scale=Math.min(1.2, state.lips.scale+0.08); renderAll(); });
   document.getElementById('lipSizeDown').addEventListener('click', ()=>{ state.lips.scale=Math.max(0.3, state.lips.scale-0.08); renderAll(); });
   document.getElementById('eyeSizeUp').addEventListener('click', ()=>{ state.eyes.scale=Math.min(2.2, state.eyes.scale+0.08); renderAll(); });
-  document.getElementById('eyeSizeDown').addEventListener('click', ()=>{ state.eyes.scale=Math.max(0.5, state.eyes.scale-0.08); renderAll(); });
+  // Minus reduces by 15% of the CURRENT size (multiplicative) rather than a
+  // flat amount, per explicit request — so each tap removes a further 15%
+  // of whatever it's already at. Floor lowered from the old 0.5 since the
+  // smaller 0.6 starting size would otherwise hit that floor after one tap.
+  document.getElementById('eyeSizeDown').addEventListener('click', ()=>{ state.eyes.scale=Math.max(0.2, state.eyes.scale*0.85); renderAll(); });
   document.getElementById('eyeSpreadOut').addEventListener('click', ()=>{ state.eyes.spread=Math.min(1.8, state.eyes.spread+0.06); renderAll(); });
   document.getElementById('eyeSpreadIn').addEventListener('click', ()=>{ state.eyes.spread=Math.max(0.5, state.eyes.spread-0.06); renderAll(); });
+
+  // Belt-and-suspenders on top of the CSS (user-select/touch-callout/
+  // touch-action) for the reported recurring bug: double-tapping these
+  // buttons popping up the phone's copy/paste text-selection UI. Explicitly
+  // cancel every event type that gesture could arrive as.
+  ['lipSizeUp','lipSizeDown','eyeSizeUp','eyeSizeDown','eyeSpreadOut','eyeSpreadIn'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.addEventListener('contextmenu', e=>e.preventDefault());
+    el.addEventListener('selectstart', e=>e.preventDefault());
+    el.addEventListener('dblclick', e=>e.preventDefault());
+  });
 
   function defaultLipsY(){
     const h = document.getElementById('stage').clientHeight || 700;
@@ -1184,7 +1275,9 @@
   }
   function resetPositions(){
     state.lips.x=0; state.lips.y=defaultLipsY(); state.lips.scale=0.448;
-    state.eyes.x=0; state.eyes.y=defaultEyesY(); state.eyes.scale=0.8; state.eyes.spread=1;
+    state.eyes.x=0; state.eyes.y=defaultEyesY(); state.eyes.scale=0.6; state.eyes.spread=1;
+    state.eyes.s2Left.x=0; state.eyes.s2Left.y=0; state.eyes.s2Left.rot=0;
+    state.eyes.s2Right.x=0; state.eyes.s2Right.y=0; state.eyes.s2Right.rot=0;
     renderAll();
   }
   document.getElementById('resetBtn').addEventListener('click', resetPositions);
@@ -1546,16 +1639,31 @@ ctx.beginPath();
     ctx.save();
     ctx.translate(spreadPx, 0);
     if(showS1) fillEyeShape(ctx, traceEyeLidS1, state.eyes.colorS1);
-    if(showS2) fillEyeShape(ctx, traceEyeLidS2, state.eyes.colorS2);
+    if(showS2){
+      ctx.save();
+      ctx.translate(state.eyes.s2Right.x, state.eyes.s2Right.y);
+      ctx.rotate(state.eyes.s2Right.rot * Math.PI / 180);
+      fillEyeShape(ctx, traceEyeLidS2, state.eyes.colorS2);
+      ctx.restore();
+    }
     ctx.restore();
 
     // Left eye — mirrored, so it's a true opposite of the right rather than
-    // an identical copy shifted sideways.
+    // an identical copy shifted sideways. The S2 offset/rotation is applied
+    // in this already-mirrored local space, matching the SVG's nested
+    // s2LeftGroup transform, so the same stored x/y/rot values line up with
+    // what's on screen without any extra sign-flipping here.
     ctx.save();
     ctx.translate(-spreadPx, 0);
     ctx.scale(-1, 1);
     if(showS1) fillEyeShape(ctx, traceEyeLidS1, state.eyes.colorS1);
-    if(showS2) fillEyeShape(ctx, traceEyeLidS2, state.eyes.colorS2);
+    if(showS2){
+      ctx.save();
+      ctx.translate(state.eyes.s2Left.x, state.eyes.s2Left.y);
+      ctx.rotate(state.eyes.s2Left.rot * Math.PI / 180);
+      fillEyeShape(ctx, traceEyeLidS2, state.eyes.colorS2);
+      ctx.restore();
+    }
     ctx.restore();
 
     ctx.restore();

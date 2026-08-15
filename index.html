@@ -640,16 +640,16 @@
                  C 98 34, 104 37, 110 37
                  C 116 37, 122 34, 128 32
                  C 152 30, 180 37, 186 49
-                 C 160 45, 130 42, 110 42
-                 C 90 42, 60 45, 34 49 Z" fill="#C0435A" opacity="0.85" id="lipsTop"/>
+                 C 160 46.2, 130 43.2, 110 43.2
+                 C 90 43.2, 60 46.2, 34 49 Z" fill="#C0435A" opacity="0.85" id="lipsTop"/>
         <!-- Bottom lip: matches traceLipsBottom() in the capture canvas exactly -->
         <path d="M 34 49
                  C 30 56, 45 63, 70 65
                  C 85 66, 95 66, 110 66
                  C 125 66, 135 66, 150 65
                  C 175 63, 190 56, 186 49
-                 C 160 52, 130 54, 110 54
-                 C 90 54, 60 52, 34 49 Z" fill="#C0435A" opacity="0.82" id="lipsBottom"/>
+                 C 160 50.8, 130 52.8, 110 52.8
+                 C 90 52.8, 60 50.8, 34 49 Z" fill="#C0435A" opacity="0.82" id="lipsBottom"/>
         </g>
       </svg>
     </div>
@@ -1281,6 +1281,26 @@
   const eyeSizeControls = document.getElementById('eyeSizeControls');
   const eyeSpreadControls = document.getElementById('eyeSpreadControls');
 
+  // The two "swipe" size-control boxes (Lips + Eyes) anchor to the logo's
+  // top edge instead of a fixed viewport percentage, so the highest one is
+  // always level with it regardless of device height or safe-area insets.
+  // In All, both are visible at once and stack downward from that same
+  // starting point instead of each independently centering on screen.
+  function positionSizeControls(mode){
+    const logoTop = document.getElementById('logo').getBoundingClientRect().top;
+    const stageTop = document.getElementById('stage').getBoundingClientRect().top;
+    const topPx = logoTop - stageTop;
+    lipSizeControls.style.transform = 'none';
+    eyeSizeControls.style.transform = 'none';
+    lipSizeControls.style.top = topPx + 'px';
+    if(mode === 'all'){
+      const lipH = lipSizeControls.getBoundingClientRect().height;
+      eyeSizeControls.style.top = (topPx + lipH + 14) + 'px';
+    } else {
+      eyeSizeControls.style.top = topPx + 'px';
+    }
+  }
+
   function applyMode(mode){
     state.mode = mode;
     modeTabs.forEach(b=>b.classList.toggle('active', b.dataset.mode===mode));
@@ -1302,21 +1322,13 @@
     eyeSizeControls.classList.toggle('hidden', !showEyes);
     eyeSpreadControls.classList.toggle('hidden', !showEyes);
 
-    // stack size controls vertically if both lips and eyes are active
-    if(mode==='all'){
-      lipSizeControls.style.top = '38%';
-      eyeSizeControls.style.top = '64%';
-      eyeSizeControls.style.transform = 'translateY(-50%)';
-      lipSizeControls.style.transform = 'translateY(-50%)';
-    } else {
-      lipSizeControls.style.top = '50%';
-      eyeSizeControls.style.top = (mode==='eyes') ? '40%' : '50%';
-    }
+    positionSizeControls(mode);
     refreshSwatches();
     renderAll();
   }
   modeTabs.forEach(btn=>btn.addEventListener('click', ()=>applyMode(btn.dataset.mode)));
   applyMode('lips');
+  window.addEventListener('resize', ()=>positionSizeControls(state.mode));
 
   /* ---------------- size / spread buttons ---------------- */
   document.getElementById('lipSizeUp').addEventListener('click', ()=>{ state.lips.scale=Math.min(1.2, state.lips.scale+0.08); renderAll(); });
@@ -1646,8 +1658,8 @@
   ctx.bezierCurveTo(98,34, 104,37, 110,37);
   ctx.bezierCurveTo(116,37, 122,34, 128,32);
   ctx.bezierCurveTo(152,30, 180,37, 186,49);
-  ctx.bezierCurveTo(160,45, 130,42, 110,42);
-  ctx.bezierCurveTo(90,42, 60,45, 34,49);
+  ctx.bezierCurveTo(160,46.2, 130,43.2, 110,43.2);
+  ctx.bezierCurveTo(90,43.2, 60,46.2, 34,49);
   ctx.closePath();
 }
  function traceLipsBottom(ctx){
@@ -1657,9 +1669,9 @@ ctx.beginPath();
   ctx.bezierCurveTo(85,66, 95,66, 110,66);
   ctx.bezierCurveTo(125,66, 135,66, 150,65);
   ctx.bezierCurveTo(175,63, 190,56, 186,49);
-  ctx.bezierCurveTo(160,52, 130,54, 110,54);
-  ctx.bezierCurveTo(90,54, 60,52, 34,49);
-  ctx.closePath(); 
+  ctx.bezierCurveTo(160,50.8, 130,52.8, 110,52.8);
+  ctx.bezierCurveTo(90,52.8, 60,50.8, 34,49);
+  ctx.closePath();
 } function traceEyeLidS1(ctx){
     // Matches #eyeRight/#eyeLeft's .eyeS1 path exactly — centered on local
     // x=0 so mirroring via scale(-1,1) works without any extra offset.

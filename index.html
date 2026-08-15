@@ -175,7 +175,6 @@
   #app.capturing .eyeExtra,
   #app.capturing #modeTabs,
   #app.capturing #hintStrip,
-  #app.capturing #swatchHint,
   #app.capturing #lipSwatchGroup,
   #app.capturing #eyeSwatchGroup,
   #app.capturing #editBtnGroup{
@@ -254,9 +253,10 @@
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     transition:opacity .3s ease;
   }
-  #swatchHint{
-    font-size:14px; color:var(--muted); text-align:center; padding:6px 16px 10px; font-weight:600;
+  .swatchHint{
+    font-size:13px; color:var(--muted); font-weight:600;
     letter-spacing:0.2px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     -webkit-user-select:none; user-select:none;
     -webkit-touch-callout:none; -webkit-user-drag:none;
     touch-action:manipulation;
@@ -361,9 +361,13 @@
     overflow-y:auto; flex:1 1 auto; min-height:0;
   }
   .swatchGroup{ margin-bottom:6px; }
+  .groupLabelRow{
+    display:flex; align-items:baseline; justify-content:space-between; gap:10px;
+    padding:0 16px 6px;
+  }
   .swatchGroup .groupLabel{
     font-size:11px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase;
-    color:var(--muted); padding:0 16px 6px;
+    color:var(--muted); padding:0; white-space:nowrap;
   }
   .brandHeader{
     display:flex; align-items:center; gap:6px;
@@ -740,16 +744,21 @@
 
   <div id="bottomPanel">
     <div id="swatchScroll">
-      <div id="swatchHint">Tap a shade to try it on</div>
       <div class="swatchGroup" id="lipSwatchGroup">
-        <div class="groupLabel">Lipstick</div>
+        <div class="groupLabelRow">
+          <div class="groupLabel">Lipstick</div>
+          <div class="swatchHint">Tap a shade to try it on</div>
+        </div>
         <div class="swatchRow" id="lipBasicRow"></div>
         <div class="brandHeader">Premium Brand Library</div>
         <div class="paywallStatus" id="lipPaywallStatus"></div>
         <div class="brandSection" id="lipBrandSection"></div>
       </div>
       <div class="swatchGroup hidden" id="eyeSwatchGroup">
-        <div class="groupLabel">Eyeshadow</div>
+        <div class="groupLabelRow">
+          <div class="groupLabel">Eyeshadow</div>
+          <div class="swatchHint">Tap a shade to try it on</div>
+        </div>
         <div class="swatchRow" id="eyeBasicRow"></div>
         <div class="brandHeader">Premium Brand Library</div>
         <div class="paywallStatus" id="eyePaywallStatus"></div>
@@ -1094,10 +1103,9 @@
     eyesLayer.style.opacity = state.eyes.visible ? '1' : '0';
 
     const showS1 = (state.mode === 'eyes' || state.mode === 'all');
-    // Flat fill, no fade — opacity is either "shown" (0.312, half of the
-    // prior 0.624, for a softer look) or "hidden" (0), never anything in
-    // between.
-    document.querySelectorAll('.eyeS1').forEach(p=>{ p.style.opacity = showS1 ? '0.312' : '0'; p.setAttribute('fill', state.eyes.colorS1); });
+    // Flat fill, no fade — opacity is either "shown" (0.3588, 15% stronger
+    // than the prior 0.312) or "hidden" (0), never anything in between.
+    document.querySelectorAll('.eyeS1').forEach(p=>{ p.style.opacity = showS1 ? '0.3588' : '0'; p.setAttribute('fill', state.eyes.colorS1); });
 
     // Each side gets its own offset+rotation on top of the shared
     // eyeLeft/eyeRight positioning, so it can be dragged and spun
@@ -1326,9 +1334,16 @@
   // touch-action) for the reported recurring bug: double-tapping these
   // buttons popping up the phone's copy/paste text-selection UI. Explicitly
   // cancel every event type that gesture could arrive as.
-  ['lipSizeUp','lipSizeDown','eyeSizeUp','eyeSizeDown','eyeSpreadOut','eyeSpreadIn','swatchHint'].forEach(id=>{
+  ['lipSizeUp','lipSizeDown','eyeSizeUp','eyeSizeDown','eyeSpreadOut','eyeSpreadIn'].forEach(id=>{
     const el = document.getElementById(id);
     if(!el) return;
+    el.addEventListener('contextmenu', e=>e.preventDefault());
+    el.addEventListener('selectstart', e=>e.preventDefault());
+    el.addEventListener('dblclick', e=>e.preventDefault());
+  });
+  // Two instances now (one in each swatch group's label row) since the hint
+  // moved onto the same line as the Lipstick/Eyeshadow label.
+  document.querySelectorAll('.swatchHint').forEach(el=>{
     el.addEventListener('contextmenu', e=>e.preventDefault());
     el.addEventListener('selectstart', e=>e.preventDefault());
     el.addEventListener('dblclick', e=>e.preventDefault());
@@ -1657,7 +1672,7 @@ ctx.beginPath();
   }
   function fillEyeShape(ctx, traceFn, hex){
     ctx.fillStyle = hex;
-    ctx.globalAlpha = 0.312; // half of the prior 0.624, for a softer look
+    ctx.globalAlpha = 0.3588; // 15% stronger than the prior 0.312
     traceFn(ctx);
     ctx.fill();
   }

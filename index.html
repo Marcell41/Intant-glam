@@ -93,8 +93,8 @@
   }
   .overlay-layer.active-drag{ transition:none; }
   .overlay-layer svg{ display:block; overflow:visible; }
-  .draggable{ pointer-events:auto; cursor:grab; }
-  .draggable:active{ cursor:grabbing; }
+  .draggable, .eyeS1{ pointer-events:auto; cursor:grab; touch-action:none; }
+  .draggable:active, .eyeS1:active{ cursor:grabbing; }
 
   #mirrorFrame{
     position:absolute; inset:10px;
@@ -654,9 +654,13 @@
          draggable). Single shape (S1) per side, flat-filled (no fade).
          eyeRight is the canonical (unmirrored) orientation; eyeLeft mirrors
          it via scale(-1,1) so the two sides are true opposites rather than
-         identical copies. -->
+         identical copies. viewBox is deliberately much bigger than the
+         shapes themselves — rotating a shape 360° around its group origin
+         (which sits off-center from the path itself) sweeps a wide circle,
+         and dragging a side out toward "spread" adds further reach, so a
+         tight box clipped those edges even with CSS overflow:visible. -->
     <div class="overlay-layer" id="eyesLayer">
-      <svg id="eyesSvg" width="320" height="90" viewBox="-160 -45 320 90">
+      <svg id="eyesSvg" width="640" height="320" viewBox="-320 -160 640 320">
         <g id="eyeRight">
           <g id="s1RightGroup"><path class="eyeS1" id="s1RightPath" d="M-60.75 67.5 C -40.5 18, -2.25 12, 29.25 24 C 54 36, 60.75 57, 51.75 67.5 C 20.25 54, -29.25 51, -60.75 67.5 Z" fill="#B79AE0"/></g>
         </g>
@@ -1090,9 +1094,10 @@
     eyesLayer.style.opacity = state.eyes.visible ? '1' : '0';
 
     const showS1 = (state.mode === 'eyes' || state.mode === 'all');
-    // Flat fill, no fade — opacity is either "shown" (0.624, ~20% lighter
-    // than the prior 0.78) or "hidden" (0), never anything in between.
-    document.querySelectorAll('.eyeS1').forEach(p=>{ p.style.opacity = showS1 ? '0.624' : '0'; p.setAttribute('fill', state.eyes.colorS1); });
+    // Flat fill, no fade — opacity is either "shown" (0.312, half of the
+    // prior 0.624, for a softer look) or "hidden" (0), never anything in
+    // between.
+    document.querySelectorAll('.eyeS1').forEach(p=>{ p.style.opacity = showS1 ? '0.312' : '0'; p.setAttribute('fill', state.eyes.colorS1); });
 
     // Each side gets its own offset+rotation on top of the shared
     // eyeLeft/eyeRight positioning, so it can be dragged and spun
@@ -1107,56 +1112,99 @@
     s1LeftPath.style.pointerEvents = showS1 ? 'auto' : 'none';
   }
 
+  // Binds a drag gesture to `el` that tracks ONE specific finger (by touch
+  // identifier) or the mouse for its whole lifetime, ignoring any other
+  // touches on screen. Plain e.touches[0]-based tracking (the prior
+  // approach) breaks down the moment a second finger is involved — every
+  // active drag's touchmove handler would all read the same "first" touch
+  // point regardless of which finger started it. Per-identifier tracking is
+  // what makes it possible for lips and eyes to each be repositioned by a
+  // different finger at the same time in the All view.
+  function bindDrag(el, { onDown, onMove, onUp }){
+    let touchId = null, usingMouse = false;
+    function findTouch(list){
+      for(let i=0;i<list.length;i++) if(list[i].identifier === touchId) return list[i];
+      return null;
+    }
+    function down(e){
+      if(e.touches){
+        const t = e.changedTouches[0];
+        touchId = t.identifier;
+        onDown(t.clientX, t.clientY);
+      } else {
+        usingMouse = true;
+        onDown(e.clientX, e.clientY);
+      }
+      e.preventDefault();
+    }
+    function move(e){
+      if(e.touches){
+        if(touchId === null) return;
+        const t = findTouch(e.touches);
+        if(!t) return;
+        onMove(t.clientX, t.clientY);
+      } else {
+        if(!usingMouse) return;
+        onMove(e.clientX, e.clientY);
+      }
+      e.preventDefault();
+    }
+    function up(e){
+      if(e.changedTouches){
+        if(touchId === null) return;
+        const t = findTouch(e.changedTouches);
+        if(!t) return;
+        touchId = null;
+      } else {
+        if(!usingMouse) return;
+        usingMouse = false;
+      }
+      onUp();
+    }
+    el.addEventListener('mousedown', down);
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    el.addEventListener('touchstart', down, {passive:false});
+    window.addEventListener('touchmove', move, {passive:false});
+    window.addEventListener('touchend', up);
+    window.addEventListener('touchcancel', up);
+  }
+
   /* Single drag surface covers the whole camera view — a convenience for
      moving an overlay from anywhere on screen when only ONE feature (Lips or
      Eyes) is active. In All, it deliberately does nothing: with both shapes
      on screen at once, a full-surface drag would move them together and
      "lock" them in place relative to each other, so each shape's own direct
      drag (setupLipsDrag / setupIndividualEyeDrag below) is the only way to
-     move it there — keeping lips and eyes independently adjustable even
-     when combined. */
+     move it there — keeping lips and eyes independently adjustable, at the
+     same time by different fingers, even when combined. */
   const dragSurface = document.getElementById('dragSurface');
   (function setupDrag(){
-    let dragging=false, startX=0, startY=0;
+    let startX=0, startY=0;
     let baseLipsX=0, baseLipsY=0, baseEyesX=0, baseEyesY=0;
-    function pointFrom(e){
-      if(e.touches && e.touches[0]) return {x:e.touches[0].clientX, y:e.touches[0].clientY};
-      return {x:e.clientX, y:e.clientY};
-    }
-    function down(e){
-      dragging=true;
-      const p = pointFrom(e);
-      startX=p.x; startY=p.y;
-      baseLipsX=state.lips.x; baseLipsY=state.lips.y;
-      baseEyesX=state.eyes.x; baseEyesY=state.eyes.y;
-      lipsLayer.classList.add('active-drag');
-      eyesLayer.classList.add('active-drag');
-      e.preventDefault();
-    }
-    function move(e){
-      if(!dragging) return;
-      const p = pointFrom(e);
-      const dx = p.x - startX, dy = p.y - startY;
-      if(state.mode === 'lips'){
-        state.lips.x = baseLipsX + dx; state.lips.y = baseLipsY + dy;
+    bindDrag(dragSurface, {
+      onDown(x,y){
+        startX=x; startY=y;
+        baseLipsX=state.lips.x; baseLipsY=state.lips.y;
+        baseEyesX=state.eyes.x; baseEyesY=state.eyes.y;
+        lipsLayer.classList.add('active-drag');
+        eyesLayer.classList.add('active-drag');
+      },
+      onMove(x,y){
+        const dx = x - startX, dy = y - startY;
+        if(state.mode === 'lips'){
+          state.lips.x = baseLipsX + dx; state.lips.y = baseLipsY + dy;
+        }
+        if(state.mode === 'eyes'){
+          state.eyes.x = baseEyesX + dx; state.eyes.y = baseEyesY + dy;
+        }
+        renderAll();
+      },
+      onUp(){
+        lipsLayer.classList.remove('active-drag');
+        eyesLayer.classList.remove('active-drag');
       }
-      if(state.mode === 'eyes'){
-        state.eyes.x = baseEyesX + dx; state.eyes.y = baseEyesY + dy;
-      }
-      renderAll();
-      e.preventDefault();
-    }
-    function up(){
-      dragging=false;
-      lipsLayer.classList.remove('active-drag');
-      eyesLayer.classList.remove('active-drag');
-    }
-    dragSurface.addEventListener('mousedown', down);
-    window.addEventListener('mousemove', move);
-    window.addEventListener('mouseup', up);
-    dragSurface.addEventListener('touchstart', down, {passive:false});
-    window.addEventListener('touchmove', move, {passive:false});
-    window.addEventListener('touchend', up);
+    });
   })();
 
   // Each eyeshadow side is independently draggable — touching directly on it
@@ -1168,43 +1216,30 @@
   // right, and a rotation gesture would visually spin backwards.
   function setupIndividualEyeDrag(pathEl, target, mirrorSign){
     const ROT_PER_PX = 360 / 300;
-    let dragging = false, startX = 0, startY = 0, baseX = 0, baseY = 0, baseRot = 0;
-    function pointFrom(e){
-      if(e.touches && e.touches[0]) return {x:e.touches[0].clientX, y:e.touches[0].clientY};
-      return {x:e.clientX, y:e.clientY};
-    }
-    function down(e){
-      dragging = true;
-      const p = pointFrom(e);
-      startX = p.x; startY = p.y;
-      baseX = target.x; baseY = target.y; baseRot = target.rot;
-      e.preventDefault();
-    }
-    function move(e){
-      if(!dragging) return;
-      const p = pointFrom(e);
-      const dx = p.x - startX, dy = p.y - startY;
-      const s = state.eyes.scale || 1;
-      target.x = baseX + (mirrorSign * dx) / s;
-      target.y = baseY + dy / s;
-      target.rot = baseRot + (mirrorSign * dy) * ROT_PER_PX;
-      renderAll();
-      e.preventDefault();
-    }
-    function up(){ dragging = false; }
-    pathEl.addEventListener('mousedown', down);
-    window.addEventListener('mousemove', move);
-    window.addEventListener('mouseup', up);
-    pathEl.addEventListener('touchstart', down, {passive:false});
-    window.addEventListener('touchmove', move, {passive:false});
-    window.addEventListener('touchend', up);
+    let startX = 0, startY = 0, baseX = 0, baseY = 0, baseRot = 0;
+    bindDrag(pathEl, {
+      onDown(x,y){
+        startX = x; startY = y;
+        baseX = target.x; baseY = target.y; baseRot = target.rot;
+      },
+      onMove(x,y){
+        const dx = x - startX, dy = y - startY;
+        const s = state.eyes.scale || 1;
+        target.x = baseX + (mirrorSign * dx) / s;
+        target.y = baseY + dy / s;
+        target.rot = baseRot + (mirrorSign * dy) * ROT_PER_PX;
+        renderAll();
+      },
+      onUp(){}
+    });
   }
   setupIndividualEyeDrag(document.getElementById('s1RightPath'), state.eyes.s1Right, 1);
   setupIndividualEyeDrag(document.getElementById('s1LeftPath'), state.eyes.s1Left, -1);
 
   // Lips are a single shape (no left/right split), so they're directly
   // draggable as one unit via #lipsGroup — touching the lips moves just
-  // them, independently of the eyes, so both stay individually adjustable
+  // them, independently of the eyes (and simultaneously, if a second finger
+  // is on the eyes at the same time), so both stay individually adjustable
   // even when shown together in All. lipsLayer's own translate(x,y) sits
   // outside its scale() in the transform chain (see renderLips), so a
   // screen-pixel delta maps 1:1 onto state.lips.x/y with no scale division
@@ -1212,34 +1247,20 @@
   // already-scaled eyesLayer.
   (function setupLipsDrag(){
     const el = document.getElementById('lipsGroup');
-    let dragging = false, startX = 0, startY = 0, baseX = 0, baseY = 0;
-    function pointFrom(e){
-      if(e.touches && e.touches[0]) return {x:e.touches[0].clientX, y:e.touches[0].clientY};
-      return {x:e.clientX, y:e.clientY};
-    }
-    function down(e){
-      dragging = true;
-      const p = pointFrom(e);
-      startX = p.x; startY = p.y;
-      baseX = state.lips.x; baseY = state.lips.y;
-      e.preventDefault();
-    }
-    function move(e){
-      if(!dragging) return;
-      const p = pointFrom(e);
-      const dx = p.x - startX, dy = p.y - startY;
-      state.lips.x = baseX + dx;
-      state.lips.y = baseY + dy;
-      renderAll();
-      e.preventDefault();
-    }
-    function up(){ dragging = false; }
-    el.addEventListener('mousedown', down);
-    window.addEventListener('mousemove', move);
-    window.addEventListener('mouseup', up);
-    el.addEventListener('touchstart', down, {passive:false});
-    window.addEventListener('touchmove', move, {passive:false});
-    window.addEventListener('touchend', up);
+    let startX = 0, startY = 0, baseX = 0, baseY = 0;
+    bindDrag(el, {
+      onDown(x,y){
+        startX = x; startY = y;
+        baseX = state.lips.x; baseY = state.lips.y;
+      },
+      onMove(x,y){
+        const dx = x - startX, dy = y - startY;
+        state.lips.x = baseX + dx;
+        state.lips.y = baseY + dy;
+        renderAll();
+      },
+      onUp(){}
+    });
   })();
 
   function renderAll(){ renderLips(); renderEyes(); }
@@ -1636,7 +1657,7 @@ ctx.beginPath();
   }
   function fillEyeShape(ctx, traceFn, hex){
     ctx.fillStyle = hex;
-    ctx.globalAlpha = 0.624; // ~20% lighter than the prior 0.78
+    ctx.globalAlpha = 0.312; // half of the prior 0.624, for a softer look
     traceFn(ctx);
     ctx.fill();
   }

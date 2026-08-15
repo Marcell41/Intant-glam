@@ -255,7 +255,11 @@
     transition:opacity .3s ease;
   }
   #swatchHint{
-    font-size:11px; color:var(--muted); text-align:center; padding:0 16px 4px; font-weight:600;
+    font-size:14px; color:var(--muted); text-align:center; padding:6px 16px 10px; font-weight:600;
+    letter-spacing:0.2px;
+    -webkit-user-select:none; user-select:none;
+    -webkit-touch-callout:none; -webkit-user-drag:none;
+    touch-action:manipulation;
   }
   #welcomeModal .modalCard{ padding-bottom:calc(var(--safe-bottom) + 26px); }
   .stepRow{ display:flex; gap:12px; align-items:flex-start; margin-bottom:16px; }
@@ -645,11 +649,11 @@
     <div class="overlay-layer" id="eyesLayer">
       <svg id="eyesSvg" width="320" height="90" viewBox="-160 -45 320 90">
         <g id="eyeRight">
-          <path class="eyeS1" d="M-81 67.5 C -54 18, -3 12, 39 24 C 72 36, 81 57, 69 67.5 C 27 54, -39 51, -81 67.5 Z" fill="#B79AE0"/>
+          <g id="s1RightGroup"><path class="eyeS1" id="s1RightPath" d="M-60.75 67.5 C -40.5 18, -2.25 12, 29.25 24 C 54 36, 60.75 57, 51.75 67.5 C 20.25 54, -29.25 51, -60.75 67.5 Z" fill="#B79AE0"/></g>
           <g id="s2RightGroup"><path class="eyeS2" id="s2RightPath" d="M57 63 C 36 24, -6 9, -30 18 C -42 24, -51 27, -57 33 C -39 45, 6 57, 57 63 Z" fill="#E8C874"/></g>
         </g>
         <g id="eyeLeft">
-          <path class="eyeS1" d="M-81 67.5 C -54 18, -3 12, 39 24 C 72 36, 81 57, 69 67.5 C 27 54, -39 51, -81 67.5 Z" fill="#B79AE0"/>
+          <g id="s1LeftGroup"><path class="eyeS1" id="s1LeftPath" d="M-60.75 67.5 C -40.5 18, -2.25 12, 29.25 24 C 54 36, 60.75 57, 51.75 67.5 C 20.25 54, -29.25 51, -60.75 67.5 Z" fill="#B79AE0"/></g>
           <g id="s2LeftGroup"><path class="eyeS2" id="s2LeftPath" d="M57 63 C 36 24, -6 9, -30 18 C -42 24, -51 27, -57 33 C -39 45, 6 57, 57 63 Z" fill="#E8C874"/></g>
         </g>
       </svg>
@@ -764,9 +768,12 @@
     lips: { x:0, y:0, scale:0.448, color:'#C0435A', visible:true },
     eyes: {
       x:0, y:-40, scale:0.6, spread:1, colorS1:'#B79AE0', colorS2:'#E8C874', visible:false,
-      // Independent per-side offset/rotation for the Base (S2) shape, on top
-      // of the shared x/y/scale/spread above — each side can be dragged and
-      // spun on its own instead of only moving as a mirrored pair.
+      // Independent per-side offset/rotation for the Eyes (S1) and Base (S2)
+      // shapes, on top of the shared x/y/scale/spread above — each side/shape
+      // can be dragged and spun on its own instead of only moving as a
+      // mirrored pair.
+      s1Left:  { x:0, y:0, rot:0 },
+      s1Right: { x:0, y:0, rot:0 },
       s2Left:  { x:0, y:0, rot:0 },
       s2Right: { x:0, y:0, rot:0 },
     },
@@ -1082,11 +1089,18 @@
     document.querySelectorAll('.eyeS1').forEach(p=>{ p.style.opacity = showS1 ? '0.78' : '0'; p.setAttribute('fill', state.eyes.colorS1); });
     document.querySelectorAll('.eyeS2').forEach(p=>{ p.style.opacity = showS2 ? '0.78' : '0'; p.setAttribute('fill', state.eyes.colorS2); });
 
-    // Each S2 shape gets its own offset+rotation on top of the shared
+    // Each S1/S2 shape gets its own offset+rotation on top of the shared
     // eyeLeft/eyeRight positioning, so it can be dragged and spun
     // independently. Only interactive (pointer-events) while actually
-    // visible, so a hidden shape in Eyes/Lips/All-without-base... wait, S2
-    // shows in Base and All, so this just tracks showS2 directly.
+    // visible.
+    const s1Left = state.eyes.s1Left, s1Right = state.eyes.s1Right;
+    document.getElementById('s1RightGroup').setAttribute('transform', `translate(${s1Right.x},${s1Right.y}) rotate(${s1Right.rot})`);
+    document.getElementById('s1LeftGroup').setAttribute('transform', `translate(${s1Left.x},${s1Left.y}) rotate(${s1Left.rot})`);
+    const s1RightPath = document.getElementById('s1RightPath');
+    const s1LeftPath = document.getElementById('s1LeftPath');
+    s1RightPath.style.pointerEvents = showS1 ? 'auto' : 'none';
+    s1LeftPath.style.pointerEvents = showS1 ? 'auto' : 'none';
+
     const s2Left = state.eyes.s2Left, s2Right = state.eyes.s2Right;
     document.getElementById('s2RightGroup').setAttribute('transform', `translate(${s2Right.x},${s2Right.y}) rotate(${s2Right.rot})`);
     document.getElementById('s2LeftGroup').setAttribute('transform', `translate(${s2Left.x},${s2Left.y}) rotate(${s2Left.rot})`);
@@ -1142,14 +1156,14 @@
     window.addEventListener('touchend', up);
   })();
 
-  // Each Base (S2) shape is independently draggable — touching directly on
-  // it (rather than elsewhere on the shared drag surface) moves just that
-  // one shape. Vertical drag distance also spins it, continuously, so a
-  // ~300px vertical drag is a full 360° rotation. mirrorSign flips the
+  // Each Eyes (S1) and Base (S2) shape is independently draggable — touching
+  // directly on it (rather than elsewhere on the shared drag surface) moves
+  // just that one shape. Vertical drag distance also spins it, continuously,
+  // so a ~300px vertical drag is a full 360° rotation. mirrorSign flips the
   // horizontal/rotation direction for the left shape, which renders inside
   // #eyeLeft's scale(-1,1) — without that flip, dragging left would move it
   // right, and a rotation gesture would visually spin backwards.
-  function setupS2Drag(pathEl, target, mirrorSign){
+  function setupIndividualEyeDrag(pathEl, target, mirrorSign){
     const ROT_PER_PX = 360 / 300;
     let dragging = false, startX = 0, startY = 0, baseX = 0, baseY = 0, baseRot = 0;
     function pointFrom(e){
@@ -1182,8 +1196,10 @@
     window.addEventListener('touchmove', move, {passive:false});
     window.addEventListener('touchend', up);
   }
-  setupS2Drag(document.getElementById('s2RightPath'), state.eyes.s2Right, 1);
-  setupS2Drag(document.getElementById('s2LeftPath'), state.eyes.s2Left, -1);
+  setupIndividualEyeDrag(document.getElementById('s1RightPath'), state.eyes.s1Right, 1);
+  setupIndividualEyeDrag(document.getElementById('s1LeftPath'), state.eyes.s1Left, -1);
+  setupIndividualEyeDrag(document.getElementById('s2RightPath'), state.eyes.s2Right, 1);
+  setupIndividualEyeDrag(document.getElementById('s2LeftPath'), state.eyes.s2Left, -1);
 
   function renderAll(){ renderLips(); renderEyes(); }
 
@@ -1257,7 +1273,7 @@
   // touch-action) for the reported recurring bug: double-tapping these
   // buttons popping up the phone's copy/paste text-selection UI. Explicitly
   // cancel every event type that gesture could arrive as.
-  ['lipSizeUp','lipSizeDown','eyeSizeUp','eyeSizeDown','eyeSpreadOut','eyeSpreadIn'].forEach(id=>{
+  ['lipSizeUp','lipSizeDown','eyeSizeUp','eyeSizeDown','eyeSpreadOut','eyeSpreadIn','swatchHint'].forEach(id=>{
     const el = document.getElementById(id);
     if(!el) return;
     el.addEventListener('contextmenu', e=>e.preventDefault());
@@ -1276,6 +1292,8 @@
   function resetPositions(){
     state.lips.x=0; state.lips.y=defaultLipsY(); state.lips.scale=0.448;
     state.eyes.x=0; state.eyes.y=defaultEyesY(); state.eyes.scale=0.6; state.eyes.spread=1;
+    state.eyes.s1Left.x=0; state.eyes.s1Left.y=0; state.eyes.s1Left.rot=0;
+    state.eyes.s1Right.x=0; state.eyes.s1Right.y=0; state.eyes.s1Right.rot=0;
     state.eyes.s2Left.x=0; state.eyes.s2Left.y=0; state.eyes.s2Left.rot=0;
     state.eyes.s2Right.x=0; state.eyes.s2Right.y=0; state.eyes.s2Right.rot=0;
     renderAll();
@@ -1585,10 +1603,10 @@ ctx.beginPath();
     // Matches #eyeRight/#eyeLeft's .eyeS1 path exactly — centered on local
     // x=0 so mirroring via scale(-1,1) works without any extra offset.
     ctx.beginPath();
-    ctx.moveTo(-81,67.5);
-    ctx.bezierCurveTo(-54,18, -3,12, 39,24);
-    ctx.bezierCurveTo(72,36, 81,57, 69,67.5);
-    ctx.bezierCurveTo(27,54, -39,51, -81,67.5);
+    ctx.moveTo(-60.75,67.5);
+    ctx.bezierCurveTo(-40.5,18, -2.25,12, 29.25,24);
+    ctx.bezierCurveTo(54,36, 60.75,57, 51.75,67.5);
+    ctx.bezierCurveTo(20.25,54, -29.25,51, -60.75,67.5);
     ctx.closePath();
   }
   function traceEyeLidS2(ctx){
@@ -1638,7 +1656,13 @@ ctx.beginPath();
     // Right eye — canonical orientation
     ctx.save();
     ctx.translate(spreadPx, 0);
-    if(showS1) fillEyeShape(ctx, traceEyeLidS1, state.eyes.colorS1);
+    if(showS1){
+      ctx.save();
+      ctx.translate(state.eyes.s1Right.x, state.eyes.s1Right.y);
+      ctx.rotate(state.eyes.s1Right.rot * Math.PI / 180);
+      fillEyeShape(ctx, traceEyeLidS1, state.eyes.colorS1);
+      ctx.restore();
+    }
     if(showS2){
       ctx.save();
       ctx.translate(state.eyes.s2Right.x, state.eyes.s2Right.y);
@@ -1649,14 +1673,21 @@ ctx.beginPath();
     ctx.restore();
 
     // Left eye — mirrored, so it's a true opposite of the right rather than
-    // an identical copy shifted sideways. The S2 offset/rotation is applied
-    // in this already-mirrored local space, matching the SVG's nested
-    // s2LeftGroup transform, so the same stored x/y/rot values line up with
-    // what's on screen without any extra sign-flipping here.
+    // an identical copy shifted sideways. The S1/S2 offset/rotation is
+    // applied in this already-mirrored local space, matching the SVG's
+    // nested s1LeftGroup/s2LeftGroup transforms, so the same stored x/y/rot
+    // values line up with what's on screen without any extra sign-flipping
+    // here.
     ctx.save();
     ctx.translate(-spreadPx, 0);
     ctx.scale(-1, 1);
-    if(showS1) fillEyeShape(ctx, traceEyeLidS1, state.eyes.colorS1);
+    if(showS1){
+      ctx.save();
+      ctx.translate(state.eyes.s1Left.x, state.eyes.s1Left.y);
+      ctx.rotate(state.eyes.s1Left.rot * Math.PI / 180);
+      fillEyeShape(ctx, traceEyeLidS1, state.eyes.colorS1);
+      ctx.restore();
+    }
     if(showS2){
       ctx.save();
       ctx.translate(state.eyes.s2Left.x, state.eyes.s2Left.y);

@@ -618,9 +618,17 @@
       <svg class="corner br" viewBox="0 0 64 64"><path d="M6 64 C 6 38, 18 17, 44 9 C 50 7, 57 6, 64 6"/><path class="inner" d="M6 46 C 18 46, 24 39, 24 26"/><path class="inner" d="M14 64 C 14 50, 22 44, 34 44"/><circle cx="24" cy="20" r="2.6"/><circle cx="10" cy="52" r="1.6"/></svg>
     </div>
 
-    <!-- Lip overlay -->
+    <!-- Lip overlay. lipsGroup is directly draggable — touching the lips
+         moves just them, independently of the eyes, even when both are
+         shown together in the All view. -->
     <div class="overlay-layer" id="lipsLayer">
       <svg id="lipsSvg" width="220" height="110" viewBox="0 0 220 110">
+        <g id="lipsGroup" class="draggable">
+        <!-- Invisible hit-area spanning the full mouth region, including the
+             gap between the top and bottom lip paths — without it, a touch
+             landing in that gap (e.g. dead-center of the mouth) would miss
+             both painted shapes and fall through to the drag surface below. -->
+        <rect x="26" y="26" width="168" height="44" fill="transparent"/>
         <!-- Top lip: matches traceLipsTop() in the capture canvas exactly. Outer contour raised
              ~10% off the mouth-line for extra fullness; mouth-line and corners unchanged. -->
         <path d="M 34 49
@@ -638,23 +646,22 @@
                  C 175 63, 190 56, 186 49
                  C 160 52, 130 54, 110 54
                  C 90 54, 60 52, 34 49 Z" fill="#C0435A" opacity="0.82" id="lipsBottom"/>
+        </g>
       </svg>
     </div>
 
-    <!-- Eye overlay (both lids move as pair). Two shapes per side: S1 is the
-         main lid tone, S2 is the narrower inner-corner tone — each 3x the
-         prior size, flat-filled (no fade). eyeRight is the canonical
-         (unmirrored) orientation; eyeLeft mirrors it via scale(-1,1) so the
-         two sides are true opposites rather than identical copies. -->
+    <!-- Eye overlay (both lids move as pair, each side also independently
+         draggable). Single shape (S1) per side, flat-filled (no fade).
+         eyeRight is the canonical (unmirrored) orientation; eyeLeft mirrors
+         it via scale(-1,1) so the two sides are true opposites rather than
+         identical copies. -->
     <div class="overlay-layer" id="eyesLayer">
       <svg id="eyesSvg" width="320" height="90" viewBox="-160 -45 320 90">
         <g id="eyeRight">
           <g id="s1RightGroup"><path class="eyeS1" id="s1RightPath" d="M-60.75 67.5 C -40.5 18, -2.25 12, 29.25 24 C 54 36, 60.75 57, 51.75 67.5 C 20.25 54, -29.25 51, -60.75 67.5 Z" fill="#B79AE0"/></g>
-          <g id="s2RightGroup"><path class="eyeS2" id="s2RightPath" d="M57 63 C 36 24, -6 9, -30 18 C -42 24, -51 27, -57 33 C -39 45, 6 57, 57 63 Z" fill="#E8C874"/></g>
         </g>
         <g id="eyeLeft">
           <g id="s1LeftGroup"><path class="eyeS1" id="s1LeftPath" d="M-60.75 67.5 C -40.5 18, -2.25 12, 29.25 24 C 54 36, 60.75 57, 51.75 67.5 C 20.25 54, -29.25 51, -60.75 67.5 Z" fill="#B79AE0"/></g>
-          <g id="s2LeftGroup"><path class="eyeS2" id="s2LeftPath" d="M57 63 C 36 24, -6 9, -30 18 C -42 24, -51 27, -57 33 C -39 45, 6 57, 57 63 Z" fill="#E8C874"/></g>
         </g>
       </svg>
     </div>
@@ -669,7 +676,6 @@
       <div id="modeTabs">
         <button class="modeTab active" data-mode="lips">Lips</button>
         <button class="modeTab" data-mode="eyes">Eyes</button>
-        <button class="modeTab" data-mode="base">Base</button>
         <button class="modeTab" data-mode="all">All</button>
       </div>
       <div style="display:flex; align-items:center; gap:8px;">
@@ -767,15 +773,12 @@
     mode: 'lips',                // lips | eyes | both
     lips: { x:0, y:0, scale:0.448, color:'#C0435A', visible:true },
     eyes: {
-      x:0, y:-40, scale:0.6, spread:1, colorS1:'#B79AE0', colorS2:'#E8C874', visible:false,
-      // Independent per-side offset/rotation for the Eyes (S1) and Base (S2)
-      // shapes, on top of the shared x/y/scale/spread above — each side/shape
-      // can be dragged and spun on its own instead of only moving as a
-      // mirrored pair.
+      x:0, y:-40, scale:0.6, spread:1, colorS1:'#B79AE0', visible:false,
+      // Independent per-side offset/rotation for the eyeshadow shape, on top
+      // of the shared x/y/scale/spread above — each side can be dragged and
+      // spun on its own instead of only moving as a mirrored pair.
       s1Left:  { x:0, y:0, rot:0 },
       s1Right: { x:0, y:0, rot:0 },
-      s2Left:  { x:0, y:0, rot:0 },
-      s2Right: { x:0, y:0, rot:0 },
     },
     facing: 'user'
   };
@@ -1064,17 +1067,21 @@
   const eyesLayer = document.getElementById('eyesLayer');
   const lipsTop = document.getElementById('lipsTop');
   const lipsBottom = document.getElementById('lipsBottom');
+  const lipsGroupEl = document.getElementById('lipsGroup');
   function renderLips(){
     lipsLayer.style.transform = `translate(-50%,-50%) translate(${state.lips.x}px, ${state.lips.y}px) scale(${state.lips.scale})`;
     lipsLayer.style.opacity = state.lips.visible ? '1' : '0';
     lipsTop.setAttribute('fill', state.lips.color);
     lipsBottom.setAttribute('fill', state.lips.color);
+    // Only interactive while actually visible — otherwise an invisible-but-
+    // present lips shape could still catch a touch meant for the eyes' own
+    // drag surface while in Eyes-only mode.
+    lipsGroupEl.style.pointerEvents = state.lips.visible ? 'auto' : 'none';
   }
-  // S1 = main lid tone (both sides), S2 = narrower inner-corner tone (both
-  // sides). eyeRight keeps the canonical orientation; eyeLeft mirrors it with
+  // eyeRight keeps the canonical orientation; eyeLeft mirrors it with
   // scale(-1,1) so the two sides are true opposites, not identical copies.
-  // Which shape(s) are visible depends on the active tab (Eyes/Base/All);
-  // color and position/scale stay shared across S1+S2 as a single set.
+  // Visible whenever the Eyes or All tab is active; color and position/scale
+  // stay shared across both sides as a single set.
   function renderEyes(){
     const spreadPx = 110 * state.eyes.spread;
     eyesLayer.style.transform = `translate(-50%,-50%) translate(${state.eyes.x}px, ${state.eyes.y}px) scale(${state.eyes.scale})`;
@@ -1083,13 +1090,11 @@
     eyesLayer.style.opacity = state.eyes.visible ? '1' : '0';
 
     const showS1 = (state.mode === 'eyes' || state.mode === 'all');
-    const showS2 = (state.mode === 'base' || state.mode === 'all');
-    // Flat fill, no fade — opacity is either "shown" (0.78) or "hidden" (0),
-    // never anything in between.
-    document.querySelectorAll('.eyeS1').forEach(p=>{ p.style.opacity = showS1 ? '0.78' : '0'; p.setAttribute('fill', state.eyes.colorS1); });
-    document.querySelectorAll('.eyeS2').forEach(p=>{ p.style.opacity = showS2 ? '0.78' : '0'; p.setAttribute('fill', state.eyes.colorS2); });
+    // Flat fill, no fade — opacity is either "shown" (0.624, ~20% lighter
+    // than the prior 0.78) or "hidden" (0), never anything in between.
+    document.querySelectorAll('.eyeS1').forEach(p=>{ p.style.opacity = showS1 ? '0.624' : '0'; p.setAttribute('fill', state.eyes.colorS1); });
 
-    // Each S1/S2 shape gets its own offset+rotation on top of the shared
+    // Each side gets its own offset+rotation on top of the shared
     // eyeLeft/eyeRight positioning, so it can be dragged and spun
     // independently. Only interactive (pointer-events) while actually
     // visible.
@@ -1100,18 +1105,16 @@
     const s1LeftPath = document.getElementById('s1LeftPath');
     s1RightPath.style.pointerEvents = showS1 ? 'auto' : 'none';
     s1LeftPath.style.pointerEvents = showS1 ? 'auto' : 'none';
-
-    const s2Left = state.eyes.s2Left, s2Right = state.eyes.s2Right;
-    document.getElementById('s2RightGroup').setAttribute('transform', `translate(${s2Right.x},${s2Right.y}) rotate(${s2Right.rot})`);
-    document.getElementById('s2LeftGroup').setAttribute('transform', `translate(${s2Left.x},${s2Left.y}) rotate(${s2Left.rot})`);
-    const s2RightPath = document.getElementById('s2RightPath');
-    const s2LeftPath = document.getElementById('s2LeftPath');
-    s2RightPath.style.pointerEvents = showS2 ? 'auto' : 'none';
-    s2LeftPath.style.pointerEvents = showS2 ? 'auto' : 'none';
   }
 
-  /* Single drag surface covers the whole camera view — moves whichever overlay(s)
-     the current mode has active, no matter where on screen the finger lands. */
+  /* Single drag surface covers the whole camera view — a convenience for
+     moving an overlay from anywhere on screen when only ONE feature (Lips or
+     Eyes) is active. In All, it deliberately does nothing: with both shapes
+     on screen at once, a full-surface drag would move them together and
+     "lock" them in place relative to each other, so each shape's own direct
+     drag (setupLipsDrag / setupIndividualEyeDrag below) is the only way to
+     move it there — keeping lips and eyes independently adjustable even
+     when combined. */
   const dragSurface = document.getElementById('dragSurface');
   (function setupDrag(){
     let dragging=false, startX=0, startY=0;
@@ -1134,10 +1137,10 @@
       if(!dragging) return;
       const p = pointFrom(e);
       const dx = p.x - startX, dy = p.y - startY;
-      if(state.mode === 'lips' || state.mode === 'all'){
+      if(state.mode === 'lips'){
         state.lips.x = baseLipsX + dx; state.lips.y = baseLipsY + dy;
       }
-      if(state.mode === 'eyes' || state.mode === 'base' || state.mode === 'all'){
+      if(state.mode === 'eyes'){
         state.eyes.x = baseEyesX + dx; state.eyes.y = baseEyesY + dy;
       }
       renderAll();
@@ -1156,10 +1159,10 @@
     window.addEventListener('touchend', up);
   })();
 
-  // Each Eyes (S1) and Base (S2) shape is independently draggable — touching
-  // directly on it (rather than elsewhere on the shared drag surface) moves
-  // just that one shape. Vertical drag distance also spins it, continuously,
-  // so a ~300px vertical drag is a full 360° rotation. mirrorSign flips the
+  // Each eyeshadow side is independently draggable — touching directly on it
+  // (rather than elsewhere on the shared drag surface) moves just that one
+  // shape. Vertical drag distance also spins it, continuously, so a ~300px
+  // vertical drag is a full 360° rotation. mirrorSign flips the
   // horizontal/rotation direction for the left shape, which renders inside
   // #eyeLeft's scale(-1,1) — without that flip, dragging left would move it
   // right, and a rotation gesture would visually spin backwards.
@@ -1198,8 +1201,46 @@
   }
   setupIndividualEyeDrag(document.getElementById('s1RightPath'), state.eyes.s1Right, 1);
   setupIndividualEyeDrag(document.getElementById('s1LeftPath'), state.eyes.s1Left, -1);
-  setupIndividualEyeDrag(document.getElementById('s2RightPath'), state.eyes.s2Right, 1);
-  setupIndividualEyeDrag(document.getElementById('s2LeftPath'), state.eyes.s2Left, -1);
+
+  // Lips are a single shape (no left/right split), so they're directly
+  // draggable as one unit via #lipsGroup — touching the lips moves just
+  // them, independently of the eyes, so both stay individually adjustable
+  // even when shown together in All. lipsLayer's own translate(x,y) sits
+  // outside its scale() in the transform chain (see renderLips), so a
+  // screen-pixel delta maps 1:1 onto state.lips.x/y with no scale division
+  // needed — unlike the per-eye drag above, whose offset lives inside the
+  // already-scaled eyesLayer.
+  (function setupLipsDrag(){
+    const el = document.getElementById('lipsGroup');
+    let dragging = false, startX = 0, startY = 0, baseX = 0, baseY = 0;
+    function pointFrom(e){
+      if(e.touches && e.touches[0]) return {x:e.touches[0].clientX, y:e.touches[0].clientY};
+      return {x:e.clientX, y:e.clientY};
+    }
+    function down(e){
+      dragging = true;
+      const p = pointFrom(e);
+      startX = p.x; startY = p.y;
+      baseX = state.lips.x; baseY = state.lips.y;
+      e.preventDefault();
+    }
+    function move(e){
+      if(!dragging) return;
+      const p = pointFrom(e);
+      const dx = p.x - startX, dy = p.y - startY;
+      state.lips.x = baseX + dx;
+      state.lips.y = baseY + dy;
+      renderAll();
+      e.preventDefault();
+    }
+    function up(){ dragging = false; }
+    el.addEventListener('mousedown', down);
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    el.addEventListener('touchstart', down, {passive:false});
+    window.addEventListener('touchmove', move, {passive:false});
+    window.addEventListener('touchend', up);
+  })();
 
   function renderAll(){ renderLips(); renderEyes(); }
 
@@ -1216,30 +1257,21 @@
     modeTabs.forEach(b=>b.classList.toggle('active', b.dataset.mode===mode));
 
     const showLips = (mode==='lips' || mode==='all');
-    const showEyes = (mode==='eyes' || mode==='base' || mode==='all');
+    const showEyes = (mode==='eyes' || mode==='all');
 
     state.lips.visible = showLips;
     state.eyes.visible = showEyes;
 
-    // Eyes tab edits S1 (lid tone) alone; Base tab edits S2 (inner-corner
-    // tone) alone — each independently, per refreshSwatches() below. In All,
-    // both colors are already chosen and lock in together as the combined
-    // look; only the shared scale/spread stay adjustable there, so no eye
-    // palette shows (matching how All never re-opens the lip palette either
-    // if lips already isn't the active editing tab — same "one palette at a
-    // time" rule as before, now just across more tabs).
-    const showLipPalette = (mode==='lips' || mode==='all');
-    const showEyePalette = (mode==='eyes' || mode==='base');
+    // Both palettes (and both size/spread control groups) show together in
+    // All too, not just on their own tabs — lips and eyes stay independently
+    // adjustable, color included, even when combined in the same view.
+    const showLipPalette = showLips;
+    const showEyePalette = showEyes;
     lipSwatchGroup.classList.toggle('hidden', !showLipPalette);
     eyeSwatchGroup.classList.toggle('hidden', !showEyePalette);
     lipSizeControls.classList.toggle('hidden', !showLips);
     eyeSizeControls.classList.toggle('hidden', !showEyes);
     eyeSpreadControls.classList.toggle('hidden', !showEyes);
-
-    const eyeGroupLabel = document.querySelector('#eyeSwatchGroup .groupLabel');
-    if(eyeGroupLabel){
-      eyeGroupLabel.textContent = mode==='base' ? 'Eyeshadow — Inner Corner' : 'Eyeshadow — Lid Color';
-    }
 
     // stack size controls vertically if both lips and eyes are active
     if(mode==='all'){
@@ -1249,9 +1281,9 @@
       lipSizeControls.style.transform = 'translateY(-50%)';
     } else {
       lipSizeControls.style.top = '50%';
-      eyeSizeControls.style.top = (mode==='eyes' || mode==='base') ? '40%' : '50%';
+      eyeSizeControls.style.top = (mode==='eyes') ? '40%' : '50%';
     }
-    refreshSwatches(); // rebuilds eye swatches targeting colorS1 vs colorS2 for this mode
+    refreshSwatches();
     renderAll();
   }
   modeTabs.forEach(btn=>btn.addEventListener('click', ()=>applyMode(btn.dataset.mode)));
@@ -1294,8 +1326,6 @@
     state.eyes.x=0; state.eyes.y=defaultEyesY(); state.eyes.scale=0.6; state.eyes.spread=1;
     state.eyes.s1Left.x=0; state.eyes.s1Left.y=0; state.eyes.s1Left.rot=0;
     state.eyes.s1Right.x=0; state.eyes.s1Right.y=0; state.eyes.s1Right.rot=0;
-    state.eyes.s2Left.x=0; state.eyes.s2Left.y=0; state.eyes.s2Left.rot=0;
-    state.eyes.s2Right.x=0; state.eyes.s2Right.y=0; state.eyes.s2Right.rot=0;
     renderAll();
   }
   document.getElementById('resetBtn').addEventListener('click', resetPositions);
@@ -1306,9 +1336,8 @@
   }
 
   // Basic row — always free, never gated by the paywall. currentColor lets a
-  // rebuilt row (e.g. after switching between the Eyes/Base tabs, which each
-  // retarget a different color property) show the right shade as selected
-  // instead of losing the highlight every time.
+  // rebuilt row keep the right shade shown as selected instead of losing the
+  // highlight every time.
   function buildBasicRow(groupEl, row, colors, currentColor, setColorFn, redrawFn){
     row.innerHTML = '';
     colors.forEach(c=>{
@@ -1390,17 +1419,13 @@
   }
 
   function refreshSwatches(){
-    // Base tab targets S2 (inner-corner tone); every other tab (including
-    // the very first render, before any tab has been clicked) targets S1
-    // (lid tone) — Eyes and Base each edit their own color independently.
-    const eyeColorKey = state.mode === 'base' ? 'colorS2' : 'colorS1';
     const setLipColor = (hex)=>{ state.lips.color = hex; };
-    const setEyeColor = (hex)=>{ state.eyes[eyeColorKey] = hex; };
+    const setEyeColor = (hex)=>{ state.eyes.colorS1 = hex; };
 
     buildBasicRow(lipSwatchGroup, document.getElementById('lipBasicRow'), BASIC_LIP_COLORS, state.lips.color, setLipColor, renderLips);
-    buildBasicRow(eyeSwatchGroup, document.getElementById('eyeBasicRow'), BASIC_EYE_COLORS, state.eyes[eyeColorKey], setEyeColor, renderEyes);
+    buildBasicRow(eyeSwatchGroup, document.getElementById('eyeBasicRow'), BASIC_EYE_COLORS, state.eyes.colorS1, setEyeColor, renderEyes);
     buildBrandSection(lipSwatchGroup, document.getElementById('lipBrandSection'), PREMIUM_LIP_BRANDS, state.lips.color, setLipColor, renderLips);
-    buildBrandSection(eyeSwatchGroup, document.getElementById('eyeBrandSection'), PREMIUM_EYE_BRANDS, state.eyes[eyeColorKey], setEyeColor, renderEyes);
+    buildBrandSection(eyeSwatchGroup, document.getElementById('eyeBrandSection'), PREMIUM_EYE_BRANDS, state.eyes.colorS1, setEyeColor, renderEyes);
     const status = paywallStatusText();
     ['lipPaywallStatus', 'eyePaywallStatus'].forEach(id=>{
       const el = document.getElementById(id);
@@ -1609,20 +1634,9 @@ ctx.beginPath();
     ctx.bezierCurveTo(20.25,54, -29.25,51, -60.75,67.5);
     ctx.closePath();
   }
-  function traceEyeLidS2(ctx){
-    // Matches .eyeS2's path exactly — narrower than S1; its inner edge
-    // (negative x, toward the nose) sweeps up well above the outer corner's
-    // baseline instead of closing flat along the same line.
-    ctx.beginPath();
-    ctx.moveTo(57,63);
-    ctx.bezierCurveTo(36,24, -6,9, -30,18);
-    ctx.bezierCurveTo(-42,24, -51,27, -57,33);
-    ctx.bezierCurveTo(-39,45, 6,57, 57,63);
-    ctx.closePath();
-  }
   function fillEyeShape(ctx, traceFn, hex){
     ctx.fillStyle = hex;
-    ctx.globalAlpha = 0.78;
+    ctx.globalAlpha = 0.624; // ~20% lighter than the prior 0.78
     traceFn(ctx);
     ctx.fill();
   }
@@ -1647,55 +1661,35 @@ ctx.beginPath();
     const cy = (stageH/2 + state.eyes.y) * ratio;
     const spreadPx = 110 * state.eyes.spread;
     const showS1 = (state.mode === 'eyes' || state.mode === 'all');
-    const showS2 = (state.mode === 'base' || state.mode === 'all');
 
     ctx.save();
     ctx.translate(cx, cy);
     ctx.scale(state.eyes.scale * ratio, state.eyes.scale * ratio);
 
     // Right eye — canonical orientation
-    ctx.save();
-    ctx.translate(spreadPx, 0);
     if(showS1){
       ctx.save();
+      ctx.translate(spreadPx, 0);
       ctx.translate(state.eyes.s1Right.x, state.eyes.s1Right.y);
       ctx.rotate(state.eyes.s1Right.rot * Math.PI / 180);
       fillEyeShape(ctx, traceEyeLidS1, state.eyes.colorS1);
       ctx.restore();
     }
-    if(showS2){
-      ctx.save();
-      ctx.translate(state.eyes.s2Right.x, state.eyes.s2Right.y);
-      ctx.rotate(state.eyes.s2Right.rot * Math.PI / 180);
-      fillEyeShape(ctx, traceEyeLidS2, state.eyes.colorS2);
-      ctx.restore();
-    }
-    ctx.restore();
 
     // Left eye — mirrored, so it's a true opposite of the right rather than
-    // an identical copy shifted sideways. The S1/S2 offset/rotation is
-    // applied in this already-mirrored local space, matching the SVG's
-    // nested s1LeftGroup/s2LeftGroup transforms, so the same stored x/y/rot
-    // values line up with what's on screen without any extra sign-flipping
-    // here.
-    ctx.save();
-    ctx.translate(-spreadPx, 0);
-    ctx.scale(-1, 1);
+    // an identical copy shifted sideways. The offset/rotation is applied in
+    // this already-mirrored local space, matching the SVG's nested
+    // s1LeftGroup transform, so the same stored x/y/rot values line up with
+    // what's on screen without any extra sign-flipping here.
     if(showS1){
       ctx.save();
+      ctx.translate(-spreadPx, 0);
+      ctx.scale(-1, 1);
       ctx.translate(state.eyes.s1Left.x, state.eyes.s1Left.y);
       ctx.rotate(state.eyes.s1Left.rot * Math.PI / 180);
       fillEyeShape(ctx, traceEyeLidS1, state.eyes.colorS1);
       ctx.restore();
     }
-    if(showS2){
-      ctx.save();
-      ctx.translate(state.eyes.s2Left.x, state.eyes.s2Left.y);
-      ctx.rotate(state.eyes.s2Left.rot * Math.PI / 180);
-      fillEyeShape(ctx, traceEyeLidS2, state.eyes.colorS2);
-      ctx.restore();
-    }
-    ctx.restore();
 
     ctx.restore();
   }
@@ -1920,17 +1914,15 @@ ctx.beginPath();
     return { name: 'Custom Mix', brand: null };
   }
 
-  // Full-page reference of exactly the 3 colors chosen (lips, eyeshadow lid,
-  // eyeshadow inner corner) — meant to be taken into a store and matched
-  // against shelf products, so it's just large, legible color blocks with
-  // names/hex codes, not a promotional screen. Leads into the subscription
-  // prompt on Continue (task 5).
+  // Full-page reference of the 2 colors chosen (lips, eyeshadow) — meant to
+  // be taken into a store and matched against shelf products, so it's just
+  // large, legible color blocks with names/hex codes, not a promotional
+  // screen. Leads into the subscription prompt on Continue.
   function openSwatchReference(){
     if(document.getElementById('swatchRefModal')) return;
 
     const lipMeta = findColorMeta(state.lips.color, BASIC_LIP_COLORS, PREMIUM_LIP_BRANDS);
-    const s1Meta = findColorMeta(state.eyes.colorS1, BASIC_EYE_COLORS, PREMIUM_EYE_BRANDS);
-    const s2Meta = findColorMeta(state.eyes.colorS2, BASIC_EYE_COLORS, PREMIUM_EYE_BRANDS);
+    const eyeMeta = findColorMeta(state.eyes.colorS1, BASIC_EYE_COLORS, PREMIUM_EYE_BRANDS);
 
     const swatchRow = (label, hex, meta) => `
       <div class="refSwatchRow">
@@ -1952,8 +1944,7 @@ ctx.beginPath();
         <h2 class="modalTitle display">Color Reference</h2>
         <p class="modalSub">Take this page with you and match it against shelf products in store.</p>
         ${swatchRow('Lips', state.lips.color, lipMeta)}
-        ${swatchRow('Eyeshadow — Lid', state.eyes.colorS1, s1Meta)}
-        ${swatchRow('Eyeshadow — Inner Corner', state.eyes.colorS2, s2Meta)}
+        ${swatchRow('Eyeshadow', state.eyes.colorS1, eyeMeta)}
         <button class="ctaBtn" id="swatchRefContinueBtn">Continue</button>
       </div>
     `;

@@ -508,7 +508,7 @@
     padding:12px 0; border-bottom:1px solid var(--line);
   }
   .refSwatchBlock{
-    flex:0 0 auto; width:64px; height:64px; border-radius:14px;
+    flex:0 0 auto; width:96px; height:96px; border-radius:14px;
     border:1px solid rgba(245,237,233,0.25);
   }
   .refSwatchLabel{
@@ -1991,9 +1991,9 @@ ctx.beginPath();
     wrap.innerHTML = `
       <div class="modalCard">
         <button class="modalClose" id="closeSwatchRef">✕</button>
-        <div class="goldEyebrow">Your Instant Glam Look</div>
+        <div class="goldEyebrow">Your Instant-Glam Look</div>
         <h2 class="modalTitle display">Color Reference</h2>
-        <p class="modalSub">Take this page with you and match it against shelf products in store.</p>
+        <p class="modalSub">Screenshot this page and use it as a color match against the big brand products in store.</p>
         ${swatchRow('Lips', state.lips.color, lipMeta)}
         ${swatchRow('Eyeshadow', state.eyes.colorS1, eyeMeta)}
         <button class="ctaBtn" id="swatchRefContinueBtn">Continue</button>

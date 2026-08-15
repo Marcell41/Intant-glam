@@ -642,12 +642,12 @@
                  C 152 30, 180 37, 186 49
                  C 160 46.2, 130 43.2, 110 43.2
                  C 90 43.2, 60 46.2, 34 49 Z" fill="#C0435A" opacity="0.85" id="lipsTop"/>
-        <!-- Bottom lip: matches traceLipsBottom() in the capture canvas exactly -->
+        <!-- Bottom lip: matches traceLipsBottom() in the capture canvas exactly.
+             Outer contour is a single smooth rounded arc (no flat plateau
+             across the middle) and sits a bit fuller/deeper than before. -->
         <path d="M 34 49
-                 C 30 56, 45 63, 70 65
-                 C 85 66, 95 66, 110 66
-                 C 125 66, 135 66, 150 65
-                 C 175 63, 190 56, 186 49
+                 C 38 62, 72 70, 110 70
+                 C 148 70, 182 62, 186 49
                  C 160 50.8, 130 52.8, 110 52.8
                  C 90 52.8, 60 50.8, 34 49 Z" fill="#C0435A" opacity="0.82" id="lipsBottom"/>
         </g>
@@ -1281,15 +1281,19 @@
   const eyeSizeControls = document.getElementById('eyeSizeControls');
   const eyeSpreadControls = document.getElementById('eyeSpreadControls');
 
-  // The two "swipe" size-control boxes (Lips + Eyes) anchor to the logo's
-  // top edge instead of a fixed viewport percentage, so the highest one is
-  // always level with it regardless of device height or safe-area insets.
-  // In All, both are visible at once and stack downward from that same
-  // starting point instead of each independently centering on screen.
+  // The two "swipe" size-control boxes (Lips + Eyes) anchor just below the
+  // topbar (logo + mode tabs) instead of a fixed viewport percentage, so
+  // they clear it on any device height or safe-area inset — sitting level
+  // with the logo itself put them overlapping the topbar and partially
+  // obscuring the selfie underneath. They're swipe-to-adjust panels, not
+  // something that needs to sit high up near the top controls, so a small
+  // gap below the topbar is enough. In All, both are visible at once and
+  // stack downward from that same starting point instead of each
+  // independently centering on screen.
   function positionSizeControls(mode){
-    const logoTop = document.getElementById('logo').getBoundingClientRect().top;
+    const topbarBottom = document.getElementById('topbar').getBoundingClientRect().bottom;
     const stageTop = document.getElementById('stage').getBoundingClientRect().top;
-    const topPx = logoTop - stageTop;
+    const topPx = topbarBottom - stageTop + 12;
     lipSizeControls.style.transform = 'none';
     eyeSizeControls.style.transform = 'none';
     lipSizeControls.style.top = topPx + 'px';
@@ -1665,10 +1669,8 @@
  function traceLipsBottom(ctx){
 ctx.beginPath();
   ctx.moveTo(34,49);
-  ctx.bezierCurveTo(30,56, 45,63, 70,65);
-  ctx.bezierCurveTo(85,66, 95,66, 110,66);
-  ctx.bezierCurveTo(125,66, 135,66, 150,65);
-  ctx.bezierCurveTo(175,63, 190,56, 186,49);
+  ctx.bezierCurveTo(38,62, 72,70, 110,70);
+  ctx.bezierCurveTo(148,70, 182,62, 186,49);
   ctx.bezierCurveTo(160,50.8, 130,52.8, 110,52.8);
   ctx.bezierCurveTo(90,52.8, 60,50.8, 34,49);
   ctx.closePath();

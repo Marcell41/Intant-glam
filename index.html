@@ -2012,15 +2012,14 @@ ctx.beginPath();
   resetPositions();
 
   /* ---------------- welcome tutorial ---------------- */
+  // Always the first thing shown on load, every visit — not a one-time
+  // "seen it before" onboarding step — so it's never skipped straight to
+  // the selfie page. The "?" button still reopens it manually afterward.
   const welcomeModal = document.getElementById('welcomeModal');
   function closeWelcome(){
     welcomeModal.classList.add('hidden');
-    try{ localStorage.setItem('instantGlamSeenIntro', '1'); }catch(e){}
   }
   document.getElementById('welcomeStartBtn').addEventListener('click', closeWelcome);
-  let seenIntro = false;
-  try{ seenIntro = localStorage.getItem('instantGlamSeenIntro') === '1'; }catch(e){}
-  if(seenIntro){ welcomeModal.classList.add('hidden'); }
   document.getElementById('helpBtn').addEventListener('click', ()=>{
     welcomeModal.classList.remove('hidden');
   });

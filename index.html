@@ -503,6 +503,22 @@
     padding-top:calc(var(--safe-top) + 24px);
     border-radius:0; border:none;
   }
+  .refLogo{
+    display:block; width:220px; max-width:100%; height:auto;
+    margin:0 auto 22px;
+  }
+  .refSubTeaser{
+    background:rgba(201,162,39,0.14);
+    border:1px solid rgba(228,197,96,0.5);
+    border-radius:12px;
+    padding:12px 16px;
+    margin-top:18px;
+    text-align:center;
+  }
+  .refSubTeaser span{
+    color:var(--gold-bright);
+    font-size:13px; font-weight:700; line-height:1.4;
+  }
   .refSwatchRow{
     display:flex; align-items:center; gap:14px;
     padding:12px 0; border-bottom:1px solid var(--line);
@@ -1966,9 +1982,10 @@ ctx.beginPath();
   }
 
   // Full-page reference of the 2 colors chosen (lips, eyeshadow) — meant to
-  // be taken into a store and matched against shelf products, so it's just
-  // large, legible color blocks with names/hex codes, not a promotional
-  // screen. Leads into the subscription prompt on Continue.
+  // be taken into a store and matched against products at any counter, so
+  // it's framed as a payoff ("your look is ready"), not a technical spec
+  // sheet — plus a small subscription teaser ahead of the prompt on
+  // Continue.
   function openSwatchReference(){
     if(document.getElementById('swatchRefModal')) return;
 
@@ -1991,11 +2008,13 @@ ctx.beginPath();
     wrap.innerHTML = `
       <div class="modalCard">
         <button class="modalClose" id="closeSwatchRef">✕</button>
+        <img class="refLogo" src="instant-glam-logo.PNG" alt="Instant Glam">
         <div class="goldEyebrow">Your Instant-Glam Look</div>
-        <h2 class="modalTitle display">Color Reference</h2>
-        <p class="modalSub">Screenshot this page and use it as a color match against the big brand products in store.</p>
+        <h2 class="modalTitle display">Your Look Is Ready</h2>
+        <p class="modalSub">Screenshot this page and take it with you so you can show any store or beauty counter exactly what you're after.</p>
         ${swatchRow('Lips', state.lips.color, lipMeta)}
         ${swatchRow('Eyeshadow', state.eyes.colorS1, eyeMeta)}
+        <div class="refSubTeaser"><span>Subscribers unlock the full brand shade library plus monthly glam selfie competitions</span></div>
         <button class="ctaBtn" id="swatchRefContinueBtn">Continue</button>
       </div>
     `;

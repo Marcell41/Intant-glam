@@ -504,8 +504,9 @@
     border-radius:0; border:none;
   }
   .refLogo{
-    display:block; width:220px; max-width:100%; height:auto;
-    margin:0 auto 22px;
+    display:block; width:calc(100% + 44px); height:170px;
+    object-fit:contain;
+    margin:calc(-1 * (var(--safe-top) + 24px)) -22px 22px;
   }
   .refSubTeaser{
     background:rgba(201,162,39,0.14);
@@ -537,6 +538,14 @@
   .goldEyebrow{
     font-size:11.5px; font-weight:800; letter-spacing:2px; text-transform:uppercase;
     color:var(--gold-bright); margin-bottom:8px;
+  }
+  /* 1.5x the modalTitle's 26px, in the same serif display face used for
+     headings elsewhere — a more sophisticated look than the small sans-serif
+     label style the eyebrow otherwise uses. */
+  #swatchRefModal .goldEyebrow{
+    font-family:'Playfair Display', serif;
+    font-size:39px; font-weight:700; letter-spacing:0.5px;
+    margin-bottom:12px;
   }
   .modalTitle{ font-size:26px; font-weight:700; margin:0 0 8px; }
   .modalSub{ color:var(--muted); font-size:14.5px; line-height:1.5; margin:0 0 20px; }

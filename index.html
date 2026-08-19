@@ -539,12 +539,14 @@
     font-size:11.5px; font-weight:800; letter-spacing:2px; text-transform:uppercase;
     color:var(--gold-bright); margin-bottom:8px;
   }
-  /* 1.5x the modalTitle's 26px, in the same serif display face used for
-     headings elsewhere — a more sophisticated look than the small sans-serif
-     label style the eyebrow otherwise uses. */
+  /* Serif display face for a more sophisticated look than the small
+     sans-serif label style the eyebrow otherwise uses. Sized down 30% from
+     an earlier 39px pass (which wrapped to 2 lines) and pinned to a single
+     line with a tighter letter-spacing so it reliably fits one row width. */
   #swatchRefModal .goldEyebrow{
     font-family:'Playfair Display', serif;
-    font-size:39px; font-weight:700; letter-spacing:0.5px;
+    font-size:23.5px; font-weight:700; letter-spacing:0;
+    white-space:nowrap;
     margin-bottom:12px;
   }
   .modalTitle{ font-size:26px; font-weight:700; margin:0 0 8px; }
